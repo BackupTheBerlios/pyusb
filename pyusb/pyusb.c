@@ -9,8 +9,13 @@
  * 2 of the License, or (at your option) any later version.
  *
  * $Log: pyusb.c,v $
- * Revision 1.1  2005/07/28 20:49:09  wander
- * Initial revision
+ * Revision 1.2  2005/07/29 15:29:47  wander
+ * - Correct $Id$ indentifier in pyusb.c
+ * - Patch to interfaceProtocol attribute, is was referencing interfaceSubClass
+ * - Added attribute interfaceClass in usbenum
+ *
+ * Revision 1.1.1.1  2005/07/28 20:49:09  wander
+ * PyUSB project
  *
  */
 
@@ -28,7 +33,7 @@
 
 #define STRING_ARRAY_SIZE 256
 
-static char cvsid[] = "$Id";
+static char cvsid[] = "$Id: pyusb.c,v 1.2 2005/07/29 15:29:47 wander Exp $";
 
 /*
  * USBError
@@ -369,7 +374,7 @@ static PyMemberDef Py_usb_Interface_Members[] = {
 
 	{"interfaceProtocol",
 	 T_UBYTE,
-	 offsetof(Py_usb_Interface, interfaceSubClass),
+	 offsetof(Py_usb_Interface, interfaceProtocol),
 	 READONLY,
 	 "Interface protocol"},
 
@@ -623,9 +628,9 @@ set_Configuration_fields(Py_usb_Configuration *configuration,
 		k = config->interface[i].num_altsetting;
 		t1 = PyTuple_New(k);
 		if (!t1) return;
-		PyTuple_SET_ITEM(configuration->interfaces, i, t1);
 		for (j = 0; j < k; ++j)
 			PyTuple_SET_ITEM(t1, j, (PyObject *) new_Interface(config->interface[i].altsetting+j));
+		PyTuple_SET_ITEM(configuration->interfaces, i, t1);
 	}
 }
 

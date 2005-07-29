@@ -29,6 +29,7 @@ for bus in busses:
 				print "    Interface:",intf[0].interfaceNumber
 				for alt in intf:
 					print "    Alternate Setting:",alt.alternateSetting
+					print "      Interface class:",alt.interfaceClass
 					print "      Interface sub class:",alt.interfaceSubClass
 					print "      Interface protocol:",alt.interfaceProtocol
 					for ep in alt.endpoints:
