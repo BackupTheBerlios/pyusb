@@ -9,8 +9,11 @@
  * 2 of the License, or (at your option) any later version.
  *
  * $Log: pyusb.c,v $
+ * Revision 1.3  2005/08/18 15:41:02  wander
+ * - Added a function that translates a python data type to a byte array
+ *
  * Revision 1.2  2005/07/29 15:29:47  wander
- * - Correct $Id$ indentifier in pyusb.c
+ * - Correct $Id: pyusb.c,v 1.3 2005/08/18 15:41:02 wander Exp $ indentifier in pyusb.c
  * - Patch to interfaceProtocol attribute, is was referencing interfaceSubClass
  * - Added attribute interfaceClass in usbenum
  *
@@ -33,7 +36,7 @@
 
 #define STRING_ARRAY_SIZE 256
 
-static char cvsid[] = "$Id: pyusb.c,v 1.2 2005/07/29 15:29:47 wander Exp $";
+static char cvsid[] = "$Id: pyusb.c,v 1.3 2005/08/18 15:41:02 wander Exp $";
 
 /*
  * USBError
@@ -43,6 +46,174 @@ static PyObject *PyExc_USBError;
 #define PyUSB_Error() PyErr_SetString(PyExc_USBError, usb_strerror())
 
 struct _Py_usb_DeviceHandle;
+struct _Py_usb_Device;
+
+static struct _Py_usb_DeviceHandle *
+new_DeviceHandle(struct _Py_usb_Device *device);
+
+/*
+ * Gets a byte from a PyObject
+ * If the obj is a number, returns the number casted to a byte
+ * If it is a sequence, returns the first byte representation of the sequence
+ * If it is a mapping, returns the first byte representation of the first obj.values()
+ */
+static u_int8_t
+getByte(PyObject *obj)
+{
+	u_int8_t byte;
+
+	if (PyNumber_Check(obj)) {
+		PyObject *num = PyNumber_Long(obj);
+		if (!num) return 0;
+		byte = (u_int8_t) PyLong_AsLong(num);
+		Py_DECREF(num);
+	} else if (PyString_Check(obj) || PyUnicode_Check(obj)) {
+		return (u_int8_t) PyString_AsString(obj)[0];
+	} else if (PySequence_Check(obj)) {
+		PyObject *el0;
+		el0 = PySequence_GetItem(obj, 0);
+		if (!el0) return 0;
+		byte = getByte(el0);
+		Py_DECREF(el0);
+	} else if (PyMapping_Check(obj)) {
+		PyObject *vals;
+		vals = PyMapping_Values(obj);
+		if (!vals) return 0;
+		byte = getByte(vals);
+		Py_DECREF(vals);
+	} else {
+		byte = 0;
+		PyErr_SetString(PyExc_TypeError, "Invalid argument");
+	}
+
+	return byte;
+}
+
+/*
+ * Gets a unsigned byte * representation of the obj
+ * If the obj is a sequence, returns the elements as a c byte array representation
+ * If it is a mapping, returns the c byte array representations of the obj.values()
+ */
+static u_int8_t *
+getBuffer(PyObject *obj, int *size)
+{
+	u_int8_t *p;
+
+	/*
+	 * When the obj is a sequence type, we take the first byte from
+	 * the each element of the sequence
+	 */
+
+	if (PyString_Check(obj) || PyUnicode_Check(obj)) { /* ok, string is a sequence too, but let us optimize it */
+		char *tmp;
+		if (-1 != PyString_AsStringAndSize(obj, &tmp, size)) {
+			p = PyMem_Malloc(*size);
+			if (p) memcpy(p, tmp, *size);
+		}
+	} else if (PySequence_Check(obj)) {
+		u_int32_t i, sz;
+		PyObject *el;
+		sz = PySequence_Size(obj);
+		p = (u_int8_t *) PyMem_Malloc(sz);
+		for (i = 0; i < sz; ++i) {
+			el = PySequence_GetItem(obj, i);
+			p[i] = getByte(el);
+			Py_DECREF(el);
+			if (!p[i] && PyErr_Occurred()) {
+				PyMem_Free(p);
+				return NULL;
+			}
+		}
+
+		*size = sz;
+	} else if (PyMapping_Check(obj)) {
+		PyObject *values;
+		values = PyMapping_Values(obj);
+		if (!values) return NULL;
+		p = getBuffer(values, size);
+		Py_DECREF(values);
+	} else {
+		PyErr_SetString(PyExc_TypeError, "Invalid argument");
+		return NULL;
+	}
+
+	return p;
+}
+
+static void
+addConstant(PyObject *dict, const char *name, long value)
+{
+	PyObject *val; 
+	val = PyInt_FromLong(value); 
+	if (val) { 
+		PyDict_SetItemString(dict,  name, val);
+		Py_DECREF(val); 
+	} 
+}
+
+static void
+installModuleConstants(PyObject *module)
+{
+	PyObject *dict;
+	dict = PyModule_GetDict(module);
+	addConstant(dict, "CLASS_PER_INTERFACE", USB_CLASS_PER_INTERFACE);
+	addConstant(dict, "CLASS_AUDIO", USB_CLASS_AUDIO);
+	addConstant(dict, "CLASS_COMM", USB_CLASS_COMM);
+	addConstant(dict, "CLASS_HID", USB_CLASS_HID);
+	addConstant(dict, "CLASS_PRINTER", USB_CLASS_PRINTER);
+	addConstant(dict, "CLASS_MASS_STORAGE", USB_CLASS_MASS_STORAGE);
+	addConstant(dict, "CLASS_HUB", USB_CLASS_HUB);
+	addConstant(dict, "CLASS_DATA", USB_CLASS_DATA);
+	addConstant(dict, "CLASS_VENDOR_SPEC", USB_CLASS_VENDOR_SPEC);
+	addConstant(dict, "DT_DEVICE", USB_DT_DEVICE);
+	addConstant(dict, "DT_CONFIG", USB_DT_CONFIG);
+	addConstant(dict, "DT_STRING", USB_DT_STRING);
+	addConstant(dict, "DT_INTERFACE", USB_DT_INTERFACE);
+	addConstant(dict, "DT_ENDPOINT", USB_DT_ENDPOINT);
+	addConstant(dict, "DT_HID", USB_DT_HID);
+	addConstant(dict, "DT_REPORT", USB_DT_REPORT);
+	addConstant(dict, "DT_PHYSICAL", USB_DT_PHYSICAL);
+	addConstant(dict, "DT_HUB", USB_DT_HUB);
+	addConstant(dict, "DT_DEVICE_SIZE", USB_DT_DEVICE_SIZE);
+	addConstant(dict, "DT_CONFIG_SIZE", USB_DT_CONFIG_SIZE);
+	addConstant(dict, "DT_INTERFACE_SIZE", USB_DT_INTERFACE_SIZE);
+	addConstant(dict, "DT_ENDPOINT_SIZE", USB_DT_ENDPOINT_SIZE);
+	addConstant(dict, "DT_ENDPOINT_AUDIO_SIZE", USB_DT_ENDPOINT_AUDIO_SIZE);
+	addConstant(dict, "DT_HUB_NONVAR_SIZE", USB_DT_HUB_NONVAR_SIZE);
+	addConstant(dict, "MAXENDPOINTS", USB_MAXENDPOINTS);
+	addConstant(dict, "ENDPOINT_ADDRESS_MASK", USB_ENDPOINT_ADDRESS_MASK);
+	addConstant(dict, "ENDPOINT_DIR_MASK", USB_ENDPOINT_DIR_MASK);
+	addConstant(dict, "ENDPOINT_TYPE_MASK", USB_ENDPOINT_TYPE_MASK);
+	addConstant(dict, "ENDPOINT_TYPE_CONTROL", USB_ENDPOINT_TYPE_CONTROL);
+	addConstant(dict, "ENDPOINT_TYPE_ISOCHRONOUS", USB_ENDPOINT_TYPE_ISOCHRONOUS);
+	addConstant(dict, "ENDPOINT_TYPE_BULK", USB_ENDPOINT_TYPE_BULK);
+	addConstant(dict, "ENDPOINT_TYPE_INTERRUPT", USB_ENDPOINT_TYPE_INTERRUPT);
+	addConstant(dict, "MAXINTERFACES", USB_MAXINTERFACES);
+	addConstant(dict, "MAXALTSETTING", USB_MAXALTSETTING);
+	addConstant(dict, "MAXCONFIG", USB_MAXCONFIG);
+	addConstant(dict, "REQ_GET_STATUS", USB_REQ_GET_STATUS);
+	addConstant(dict, "REQ_CLEAR_FEATURE", USB_REQ_CLEAR_FEATURE);
+	addConstant(dict, "REQ_SET_FEATURE", USB_REQ_SET_FEATURE);
+	addConstant(dict, "REQ_SET_ADDRESS", USB_REQ_SET_ADDRESS);
+	addConstant(dict, "REQ_GET_DESCRIPTOR", USB_REQ_GET_DESCRIPTOR);
+	addConstant(dict, "REQ_SET_DESCRIPTOR", USB_REQ_SET_DESCRIPTOR);
+	addConstant(dict, "REQ_GET_CONFIGURATION", USB_REQ_GET_CONFIGURATION);
+	addConstant(dict, "REQ_SET_CONFIGURATION", USB_REQ_SET_CONFIGURATION);
+	addConstant(dict, "REQ_GET_INTERFACE", USB_REQ_GET_INTERFACE);
+	addConstant(dict, "REQ_SET_INTERFACE", USB_REQ_SET_INTERFACE);
+	addConstant(dict, "REQ_SYNCH_FRAME", USB_REQ_SYNCH_FRAME);
+	addConstant(dict, "TYPE_STANDARD", USB_TYPE_STANDARD);
+	addConstant(dict, "TYPE_CLASS", USB_TYPE_CLASS);
+	addConstant(dict, "TYPE_VENDOR", USB_TYPE_VENDOR);
+	addConstant(dict, "TYPE_RESERVED", USB_TYPE_RESERVED);
+	addConstant(dict, "RECIP_DEVICE", USB_RECIP_DEVICE);
+	addConstant(dict, "RECIP_INTERFACE", USB_RECIP_INTERFACE);
+	addConstant(dict, "RECIP_ENDPOINT", USB_RECIP_ENDPOINT);
+	addConstant(dict, "RECIP_OTHER", USB_RECIP_OTHER);
+	addConstant(dict, "ENDPOINT_IN", USB_ENDPOINT_IN);
+	addConstant(dict, "ENDPOINT_OUT", USB_ENDPOINT_OUT);
+	addConstant(dict, "ERROR_BEGIN", USB_ERROR_BEGIN);
+}
 
 /*
  * EndpointDescriptor object
@@ -739,8 +910,7 @@ static PyMemberDef Py_usb_Device_Members[] = {
 static PyObject *
 Py_usb_Device_open(PyObject *self, PyObject *args)
 {
-	PyErr_SetString(PyExc_USBError, "Not implemented");
-	return NULL;
+	return (PyObject *) new_DeviceHandle((Py_usb_Device *) self);
 }
 
 static PyMethodDef Py_usb_Device_Methods[] = {
@@ -996,11 +1166,56 @@ static PyMemberDef Py_usb_DeviceHandle_Members[] = {
 	{NULL}
 };
 
+/*
+ * def controlMsg(requestType, request, data, value = 0, index = 0, timeout = 100)
+ */
 static PyObject *
-Py_usb_DeviceHandle_controlMsg(PyObject *self, PyObject *args)
+Py_usb_DeviceHandle_controlMsg(PyObject *self, PyObject *args, PyObject *kwds)
 {
-	PyErr_SetString(PyExc_USBError, "not implemented");
-	return NULL;
+	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
+	int requestType;
+	int request;
+	int value = 0;
+	int index = 0;
+	char *bytes;
+	PyObject *data;
+	int size;
+	int timeout = 100;
+	static char *kwlist[] = {
+		"requestType",
+		"request",
+		"value",
+		"index",
+		"data",
+		"timeout",
+		NULL
+	};
+
+	if (!PyArg_ParseTupleAndKeywords(args,
+									 kwds,
+									 "iiO|iii",
+									 kwlist,
+									 &requestType,
+									 &request,
+									 &data,
+									 &value,
+									 &index,
+									 &timeout)) {
+		return NULL;
+	}
+
+	bytes = (char *) getBuffer(data, &size);
+	if (bytes) {
+		int i;
+	   	for (i = 0; i < size; ++i) {
+			printf("%d ", bytes[i]);
+			if (i && !(i % 20)) putchar('\n');
+		}
+		PyMem_Free(bytes);
+	} else {
+		return NULL;
+	}
+	Py_RETURN_NONE;
 }
 
 static PyObject *
@@ -1040,8 +1255,8 @@ Py_usb_DeviceHandle_getEndpoint(PyObject *self, PyObject *args)
 
 static PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	{"controlMsg",
-	 Py_usb_DeviceHandle_controlMsg,
-	 METH_VARARGS,
+	 (PyCFunction) Py_usb_DeviceHandle_controlMsg,
+	 METH_VARARGS | METH_KEYWORDS,
 	 ""},
 
 	{"setConfiguration",
@@ -1195,81 +1410,6 @@ static PyMethodDef usb_Methods[] = {
 	{"busses", busses, METH_NOARGS, "Returns a tuple with the usb busses"},
 	{NULL, NULL}
 };
-
-static void
-addConstant(PyObject *dict, const char *name, long value)
-{
-	PyObject *val; 
-	val = PyInt_FromLong(value); 
-	if (val) { 
-		PyDict_SetItemString(dict,  name, val);
-		Py_DECREF(val); 
-	} 
-}
-
-static void
-installModuleConstants(PyObject *module)
-{
-	PyObject *dict;
-	dict = PyModule_GetDict(module);
-	addConstant(dict, "CLASS_PER_INTERFACE", USB_CLASS_PER_INTERFACE);
-	addConstant(dict, "CLASS_AUDIO", USB_CLASS_AUDIO);
-	addConstant(dict, "CLASS_COMM", USB_CLASS_COMM);
-	addConstant(dict, "CLASS_HID", USB_CLASS_HID);
-	addConstant(dict, "CLASS_PRINTER", USB_CLASS_PRINTER);
-	addConstant(dict, "CLASS_MASS_STORAGE", USB_CLASS_MASS_STORAGE);
-	addConstant(dict, "CLASS_HUB", USB_CLASS_HUB);
-	addConstant(dict, "CLASS_DATA", USB_CLASS_DATA);
-	addConstant(dict, "CLASS_VENDOR_SPEC", USB_CLASS_VENDOR_SPEC);
-	addConstant(dict, "DT_DEVICE", USB_DT_DEVICE);
-	addConstant(dict, "DT_CONFIG", USB_DT_CONFIG);
-	addConstant(dict, "DT_STRING", USB_DT_STRING);
-	addConstant(dict, "DT_INTERFACE", USB_DT_INTERFACE);
-	addConstant(dict, "DT_ENDPOINT", USB_DT_ENDPOINT);
-	addConstant(dict, "DT_HID", USB_DT_HID);
-	addConstant(dict, "DT_REPORT", USB_DT_REPORT);
-	addConstant(dict, "DT_PHYSICAL", USB_DT_PHYSICAL);
-	addConstant(dict, "DT_HUB", USB_DT_HUB);
-	addConstant(dict, "DT_DEVICE_SIZE", USB_DT_DEVICE_SIZE);
-	addConstant(dict, "DT_CONFIG_SIZE", USB_DT_CONFIG_SIZE);
-	addConstant(dict, "DT_INTERFACE_SIZE", USB_DT_INTERFACE_SIZE);
-	addConstant(dict, "DT_ENDPOINT_SIZE", USB_DT_ENDPOINT_SIZE);
-	addConstant(dict, "DT_ENDPOINT_AUDIO_SIZE", USB_DT_ENDPOINT_AUDIO_SIZE);
-	addConstant(dict, "DT_HUB_NONVAR_SIZE", USB_DT_HUB_NONVAR_SIZE);
-	addConstant(dict, "MAXENDPOINTS", USB_MAXENDPOINTS);
-	addConstant(dict, "ENDPOINT_ADDRESS_MASK", USB_ENDPOINT_ADDRESS_MASK);
-	addConstant(dict, "ENDPOINT_DIR_MASK", USB_ENDPOINT_DIR_MASK);
-	addConstant(dict, "ENDPOINT_TYPE_MASK", USB_ENDPOINT_TYPE_MASK);
-	addConstant(dict, "ENDPOINT_TYPE_CONTROL", USB_ENDPOINT_TYPE_CONTROL);
-	addConstant(dict, "ENDPOINT_TYPE_ISOCHRONOUS", USB_ENDPOINT_TYPE_ISOCHRONOUS);
-	addConstant(dict, "ENDPOINT_TYPE_BULK", USB_ENDPOINT_TYPE_BULK);
-	addConstant(dict, "ENDPOINT_TYPE_INTERRUPT", USB_ENDPOINT_TYPE_INTERRUPT);
-	addConstant(dict, "MAXINTERFACES", USB_MAXINTERFACES);
-	addConstant(dict, "MAXALTSETTING", USB_MAXALTSETTING);
-	addConstant(dict, "MAXCONFIG", USB_MAXCONFIG);
-	addConstant(dict, "REQ_GET_STATUS", USB_REQ_GET_STATUS);
-	addConstant(dict, "REQ_CLEAR_FEATURE", USB_REQ_CLEAR_FEATURE);
-	addConstant(dict, "REQ_SET_FEATURE", USB_REQ_SET_FEATURE);
-	addConstant(dict, "REQ_SET_ADDRESS", USB_REQ_SET_ADDRESS);
-	addConstant(dict, "REQ_GET_DESCRIPTOR", USB_REQ_GET_DESCRIPTOR);
-	addConstant(dict, "REQ_SET_DESCRIPTOR", USB_REQ_SET_DESCRIPTOR);
-	addConstant(dict, "REQ_GET_CONFIGURATION", USB_REQ_GET_CONFIGURATION);
-	addConstant(dict, "REQ_SET_CONFIGURATION", USB_REQ_SET_CONFIGURATION);
-	addConstant(dict, "REQ_GET_INTERFACE", USB_REQ_GET_INTERFACE);
-	addConstant(dict, "REQ_SET_INTERFACE", USB_REQ_SET_INTERFACE);
-	addConstant(dict, "REQ_SYNCH_FRAME", USB_REQ_SYNCH_FRAME);
-	addConstant(dict, "TYPE_STANDARD", USB_TYPE_STANDARD);
-	addConstant(dict, "TYPE_CLASS", USB_TYPE_CLASS);
-	addConstant(dict, "TYPE_VENDOR", USB_TYPE_VENDOR);
-	addConstant(dict, "TYPE_RESERVED", USB_TYPE_RESERVED);
-	addConstant(dict, "RECIP_DEVICE", USB_RECIP_DEVICE);
-	addConstant(dict, "RECIP_INTERFACE", USB_RECIP_INTERFACE);
-	addConstant(dict, "RECIP_ENDPOINT", USB_RECIP_ENDPOINT);
-	addConstant(dict, "RECIP_OTHER", USB_RECIP_OTHER);
-	addConstant(dict, "ENDPOINT_IN", USB_ENDPOINT_IN);
-	addConstant(dict, "ENDPOINT_OUT", USB_ENDPOINT_OUT);
-	addConstant(dict, "ERROR_BEGIN", USB_ERROR_BEGIN);
-}
 
 #ifndef PyMODINIT_FUNC
 #define PyMODINIT_FUNC void
