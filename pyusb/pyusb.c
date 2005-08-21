@@ -7,24 +7,9 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
- *
- * $Log: pyusb.c,v $
- * Revision 1.3  2005/08/18 15:41:02  wander
- * - Added a function that translates a python data type to a byte array
- *
- * Revision 1.2  2005/07/29 15:29:47  wander
- * - Correct $Id: pyusb.c,v 1.3 2005/08/18 15:41:02 wander Exp $ indentifier in pyusb.c
- * - Patch to interfaceProtocol attribute, is was referencing interfaceSubClass
- * - Added attribute interfaceClass in usbenum
- *
- * Revision 1.1.1.1  2005/07/28 20:49:09  wander
- * PyUSB project
- *
  */
 
-#include <Python.h>
-#include <structmember.h>
-#include <usb.h>
+#include "pyusb.h"
 #include <stdlib.h>
 #include <stdio.h>
 #ifdef unix
@@ -34,22 +19,38 @@
 #include <windows.h>
 #endif /* _WIN32 */
 
-#define STRING_ARRAY_SIZE 256
-
-static char cvsid[] = "$Id: pyusb.c,v 1.3 2005/08/18 15:41:02 wander Exp $";
+PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.4 2005/08/21 23:53:38 wander Exp $";
 
 /*
  * USBError
  */
-static PyObject *PyExc_USBError;
+PYUSB_STATIC PyObject *PyExc_USBError;
 
 #define PyUSB_Error() PyErr_SetString(PyExc_USBError, usb_strerror())
 
-struct _Py_usb_DeviceHandle;
-struct _Py_usb_Device;
+#ifndef NDEBUG
+#define DUMP_PARAMS
+#endif /* NDEBUG */
 
-static struct _Py_usb_DeviceHandle *
-new_DeviceHandle(struct _Py_usb_Device *device);
+#ifndef NDEBUG
+
+/*
+ * Print a buffer of data
+ */
+PYUSB_STATIC void printBuffer(
+	const char *buffer,
+	int size
+	)
+{
+	int i;
+
+   	for (i = 0; i < 0; ++i) {
+		printf("%2x ", buffer[i]);
+		if (i && !(i % 20)) putchar('\n');
+	}
+}
+
+#endif /* NDEBUG */
 
 /*
  * Gets a byte from a PyObject
@@ -57,16 +58,14 @@ new_DeviceHandle(struct _Py_usb_Device *device);
  * If it is a sequence, returns the first byte representation of the sequence
  * If it is a mapping, returns the first byte representation of the first obj.values()
  */
-static u_int8_t
-getByte(PyObject *obj)
+PYUSB_STATIC u_int8_t getByte(
+	PyObject *obj
+	)
 {
 	u_int8_t byte;
 
 	if (PyNumber_Check(obj)) {
-		PyObject *num = PyNumber_Long(obj);
-		if (!num) return 0;
-		byte = (u_int8_t) PyLong_AsLong(num);
-		Py_DECREF(num);
+		byte = (u_int8_t) PyNumber_AsLong(obj);
 	} else if (PyString_Check(obj) || PyUnicode_Check(obj)) {
 		return (u_int8_t) PyString_AsString(obj)[0];
 	} else if (PySequence_Check(obj)) {
@@ -94,8 +93,10 @@ getByte(PyObject *obj)
  * If the obj is a sequence, returns the elements as a c byte array representation
  * If it is a mapping, returns the c byte array representations of the obj.values()
  */
-static u_int8_t *
-getBuffer(PyObject *obj, int *size)
+PYUSB_STATIC u_int8_t *getBuffer(
+	PyObject *obj,
+	int *size
+	)
 {
 	u_int8_t *p;
 
@@ -104,8 +105,10 @@ getBuffer(PyObject *obj, int *size)
 	 * the each element of the sequence
 	 */
 
-	if (PyString_Check(obj) || PyUnicode_Check(obj)) { /* ok, string is a sequence too, but let us optimize it */
+	/* ok, string is a sequence too, but let us optimize it */
+	if (PyString_Check(obj) || PyUnicode_Check(obj)) { 
 		char *tmp;
+
 		if (-1 != PyString_AsStringAndSize(obj, &tmp, size)) {
 			p = PyMem_Malloc(*size);
 			if (p) memcpy(p, tmp, *size);
@@ -113,12 +116,15 @@ getBuffer(PyObject *obj, int *size)
 	} else if (PySequence_Check(obj)) {
 		u_int32_t i, sz;
 		PyObject *el;
+
 		sz = PySequence_Size(obj);
 		p = (u_int8_t *) PyMem_Malloc(sz);
+
 		for (i = 0; i < sz; ++i) {
 			el = PySequence_GetItem(obj, i);
 			p[i] = getByte(el);
 			Py_DECREF(el);
+
 			if (!p[i] && PyErr_Occurred()) {
 				PyMem_Free(p);
 				return NULL;
@@ -128,8 +134,10 @@ getBuffer(PyObject *obj, int *size)
 		*size = sz;
 	} else if (PyMapping_Check(obj)) {
 		PyObject *values;
+
 		values = PyMapping_Values(obj);
 		if (!values) return NULL;
+
 		p = getBuffer(values, size);
 		Py_DECREF(values);
 	} else {
@@ -140,22 +148,35 @@ getBuffer(PyObject *obj, int *size)
 	return p;
 }
 
-static void
-addConstant(PyObject *dict, const char *name, long value)
+/*
+ * Add a numeric constant to the dictionary
+ */
+PYUSB_STATIC void addConstant(
+	PyObject *dict,
+	const char *name,
+	long value)
 {
-	PyObject *val; 
+	PyObject *val;
+
 	val = PyInt_FromLong(value); 
+
 	if (val) { 
 		PyDict_SetItemString(dict,  name, val);
 		Py_DECREF(val); 
 	} 
 }
 
-static void
-installModuleConstants(PyObject *module)
+/*
+ * Add the module constants to the module dictionary
+ */
+PYUSB_STATIC void installModuleConstants(
+	PyObject *module
+	)
 {
 	PyObject *dict;
+
 	dict = PyModule_GetDict(module);
+
 	addConstant(dict, "CLASS_PER_INTERFACE", USB_CLASS_PER_INTERFACE);
 	addConstant(dict, "CLASS_AUDIO", USB_CLASS_AUDIO);
 	addConstant(dict, "CLASS_COMM", USB_CLASS_COMM);
@@ -215,19 +236,7 @@ installModuleConstants(PyObject *module)
 	addConstant(dict, "ERROR_BEGIN", USB_ERROR_BEGIN);
 }
 
-/*
- * EndpointDescriptor object
- */
-typedef struct _Py_usb_EndpointDescriptor {
-	PyObject_HEAD
-	u_int8_t address;
-	u_int8_t type;
-	u_int16_t maxPacketSize;
-	u_int8_t interval;
-	u_int8_t refresh;
-} Py_usb_EndpointDescriptor;
-
-static PyMemberDef Py_usb_EndpointDescriptor_Members[] = {
+PYUSB_STATIC PyMemberDef Py_usb_EndpointDescriptor_Members[] = {
 	{"address",
 	 T_UBYTE,
 	 offsetof(Py_usb_EndpointDescriptor, address),
@@ -255,11 +264,11 @@ static PyMemberDef Py_usb_EndpointDescriptor_Members[] = {
 	{NULL}
 };
 
-static PyMethodDef Py_usb_EndpointDescriptor_Methods[] = {
+PYUSB_STATIC PyMethodDef Py_usb_EndpointDescriptor_Methods[] = {
 	{NULL, NULL}
 };
 
-static PyTypeObject Py_usb_EndpointDescriptor_Type = {
+PYUSB_STATIC PyTypeObject Py_usb_EndpointDescriptor_Type = {
     PyObject_HEAD_INIT(NULL)
     0,                         /*ob_size*/
     "usb.EndpointDescriptor",  /*tp_name*/
@@ -309,9 +318,10 @@ static PyTypeObject Py_usb_EndpointDescriptor_Type = {
 	0,						   /* destructor */
 };
 
-static void
-set_EndpointDescriptor_fields(Py_usb_EndpointDescriptor *endpoint,
-							struct usb_endpoint_descriptor *ep)
+PYUSB_STATIC void set_EndpointDescriptor_fields(
+	Py_usb_EndpointDescriptor *endpoint,
+	struct usb_endpoint_descriptor *ep
+	)
 {
 	endpoint->address = ep->bEndpointAddress;
 	endpoint->type = ep->bmAttributes & 3;
@@ -321,8 +331,9 @@ set_EndpointDescriptor_fields(Py_usb_EndpointDescriptor *endpoint,
 	// endpoint->synchAddress - ep->bSynchAddress;
 }
 
-static Py_usb_EndpointDescriptor *
-new_EndpointDescriptor(struct usb_endpoint_descriptor *ep)
+PYUSB_STATIC Py_usb_EndpointDescriptor *new_EndpointDescriptor(
+	struct usb_endpoint_descriptor *ep
+	)
 {
 	Py_usb_EndpointDescriptor *endpoint;
 
@@ -335,48 +346,46 @@ new_EndpointDescriptor(struct usb_endpoint_descriptor *ep)
 	return endpoint;
 }
 
-/*
- * Endpoint Object
- */
-typedef struct _Py_usb_Endpoint {
-	PyObject_HEAD
-	u_int8_t epdescdata[sizeof(Py_usb_EndpointDescriptor)-sizeof(PyObject)];
-	struct _Py_usb_DeviceHandle *deviceHandle;
-} Py_usb_Endpoint;
-
-static PyMemberDef Py_usb_Endpoint_Members[] = {
+PYUSB_STATIC PyMemberDef Py_usb_Endpoint_Members[] = {
 	{NULL}
 };
 
-static PyObject *
-Py_usb_Endpoint_write(PyObject *self, PyObject *args)
+PYUSB_STATIC PyObject *Py_usb_Endpoint_write(
+	PyObject *self, PyObject *args
+	)
 {
 	PyErr_SetString(PyExc_USBError, "not implemented");
 	return NULL;
 }
 
-static PyObject *
-Py_usb_Endpoint_read(PyObject *self, PyObject *args)
+PYUSB_STATIC PyObject *Py_usb_Endpoint_read(
+	PyObject *self,
+	PyObject *args
+	)
 {
 	PyErr_SetString(PyExc_USBError, "not implemented");
 	return NULL;
 }
 
-static PyObject *
-Py_usb_Endpoint_reset(PyObject *self, PyObject *args)
+PYUSB_STATIC PyObject *Py_usb_Endpoint_reset(
+	PyObject *self,
+	PyObject *args
+	)
 {
 	PyErr_SetString(PyExc_USBError, "not implemented");
 	return NULL;
 }
 
-static PyObject *
-Py_usb_Endpoint_clearHalt(PyObject *self, PyObject *args)
+PYUSB_STATIC PyObject *Py_usb_Endpoint_clearHalt(
+	PyObject *self,
+	PyObject *args
+	)
 {
 	PyErr_SetString(PyExc_USBError, "not implemented");
 	return NULL;
 }
 
-static PyMethodDef Py_usb_Endpoint_Methods[] = {
+PYUSB_STATIC PyMethodDef Py_usb_Endpoint_Methods[] = {
 	{"write",
 	 Py_usb_Endpoint_write,
 	 METH_VARARGS,
@@ -406,13 +415,14 @@ static PyMethodDef Py_usb_Endpoint_Methods[] = {
 	{NULL, NULL}
 };
 
-static void
-Py_usb_Endpoint_del(PyObject *self)
+PYUSB_STATIC void Py_usb_Endpoint_del(
+	PyObject *self
+	)
 {
 	Py_XDECREF((PyObject *) ((Py_usb_Endpoint *) self)->deviceHandle);
 }
 
-static PyTypeObject Py_usb_Endpoint_Type = {
+PYUSB_STATIC PyTypeObject Py_usb_Endpoint_Type = {
     PyObject_HEAD_INIT(NULL)
     0,                         /*ob_size*/
     "usb.Endpoint",        	   /*tp_name*/
@@ -462,8 +472,10 @@ static PyTypeObject Py_usb_Endpoint_Type = {
 	Py_usb_Endpoint_del		   /* destructor */
 };
 
-static Py_usb_Endpoint *
-new_Endpoint(struct usb_endpoint_descriptor *ep, struct _Py_usb_DeviceHandle *h)
+PYUSB_STATIC Py_usb_Endpoint *new_Endpoint(
+	struct usb_endpoint_descriptor *ep,
+	struct _Py_usb_DeviceHandle *h
+	)
 {
 	Py_usb_Endpoint *endpoint;
 
@@ -477,10 +489,13 @@ new_Endpoint(struct usb_endpoint_descriptor *ep, struct _Py_usb_DeviceHandle *h)
 	return endpoint;
 }
 
-static void
-set_Endpoint_fields(Py_usb_Endpoint *endpoint, Py_usb_EndpointDescriptor *ep)
+PYUSB_STATIC void set_Endpoint_fields(
+	Py_usb_Endpoint *endpoint,
+	Py_usb_EndpointDescriptor *ep
+	)
 {
 	Py_usb_EndpointDescriptor *epd = (Py_usb_EndpointDescriptor *) endpoint;
+
 	epd->address = ep->address;
 	epd->type = ep->type;
 	epd->maxPacketSize = ep->maxPacketSize;
@@ -489,8 +504,10 @@ set_Endpoint_fields(Py_usb_Endpoint *endpoint, Py_usb_EndpointDescriptor *ep)
 	//epd->synchAddress - ep->synchAddress;
 }
 
-static Py_usb_Endpoint *
-new_Endpoint2(Py_usb_EndpointDescriptor *ep, struct _Py_usb_DeviceHandle *h)
+PYUSB_STATIC Py_usb_Endpoint *new_Endpoint2(
+	Py_usb_EndpointDescriptor *ep,
+	struct _Py_usb_DeviceHandle *h
+	)
 {
 	Py_usb_Endpoint *endpoint;
 
@@ -504,21 +521,7 @@ new_Endpoint2(Py_usb_EndpointDescriptor *ep, struct _Py_usb_DeviceHandle *h)
 	return endpoint;
 }
 
-/*
- * Interface Object
- */
-typedef struct _Py_usb_Interface {
-	PyObject_HEAD
-	u_int8_t interfaceNumber;
-	u_int8_t alternateSetting;
-	u_int8_t interfaceClass;
-	u_int8_t interfaceSubClass;
-	u_int8_t interfaceProtocol;
-	u_int8_t iInterface;
-	PyObject *endpoints;
-} Py_usb_Interface;
-
-static PyMemberDef Py_usb_Interface_Members[] = {
+PYUSB_STATIC PyMemberDef Py_usb_Interface_Members[] = {
 	{"interfaceNumber",
 	 T_UBYTE,
 	 offsetof(Py_usb_Interface, interfaceNumber),
@@ -558,17 +561,18 @@ static PyMemberDef Py_usb_Interface_Members[] = {
 	{NULL}
 };
 
-static void
-Py_usb_Interface_del(PyObject *self)
+PYUSB_STATIC void Py_usb_Interface_del(
+	PyObject *self
+	)
 {
 	Py_XDECREF((PyObject *) ((Py_usb_Interface *) self)->endpoints);
 }
 
-static PyMethodDef Py_usb_Interface_Methods[] = {
+PYUSB_STATIC PyMethodDef Py_usb_Interface_Methods[] = {
 	{NULL}
 };
 
-static PyTypeObject Py_usb_Interface_Type = {
+PYUSB_STATIC PyTypeObject Py_usb_Interface_Type = {
     PyObject_HEAD_INIT(NULL)
     0,                         /*ob_size*/
     "usb.Interface",    	   /*tp_name*/
@@ -618,9 +622,10 @@ static PyTypeObject Py_usb_Interface_Type = {
 	Py_usb_Interface_del		/* destructor */
 };
 
-static void
-set_Interface_fields(Py_usb_Interface *interface,
-					struct usb_interface_descriptor *i)
+PYUSB_STATIC void set_Interface_fields(
+	Py_usb_Interface *interface,
+	struct usb_interface_descriptor *i
+	)
 {
 	u_int8_t index;
 
@@ -642,8 +647,9 @@ set_Interface_fields(Py_usb_Interface *interface,
 						(PyObject *) new_EndpointDescriptor(i->endpoint+index));
 }
 
-static Py_usb_Interface *
-new_Interface(struct usb_interface_descriptor *i)
+PYUSB_STATIC Py_usb_Interface *new_Interface(
+	struct usb_interface_descriptor *i
+	)
 {
 	Py_usb_Interface *interface;
 
@@ -661,21 +667,7 @@ new_Interface(struct usb_interface_descriptor *i)
 	return interface;
 }
 
-/*
- * Configuration object
- */
-typedef struct _Py_usb_Configuration {
-	PyObject_HEAD
-	u_int16_t totalLength;
-	u_int8_t value;
-	u_int8_t iConfiguration;
-	u_int8_t selfPowered;
-	u_int8_t remoteWakeup;
-	u_int16_t maxPower;
-	PyObject *interfaces;
-} Py_usb_Configuration;
-
-static PyMemberDef Py_usb_Configuration_Members[] = {
+PYUSB_STATIC PyMemberDef Py_usb_Configuration_Members[] = {
 	{"totalLength",
 	 T_USHORT,
 	 offsetof(Py_usb_Configuration, totalLength),
@@ -717,17 +709,18 @@ static PyMemberDef Py_usb_Configuration_Members[] = {
 	{NULL}
 };
 
-static PyMethodDef Py_usb_Configuration_Methods[] = {
+PYUSB_STATIC PyMethodDef Py_usb_Configuration_Methods[] = {
 	{NULL, NULL}
 };
 
-static void
-Py_usb_Configuration_del(PyObject *self)
+PYUSB_STATIC void Py_usb_Configuration_del(
+	PyObject *self
+	)
 {
 	Py_XDECREF((PyObject *) ((Py_usb_Configuration *) self)->interfaces);
 }
 
-static PyTypeObject Py_usb_Configuration_Type = {
+PYUSB_STATIC PyTypeObject Py_usb_Configuration_Type = {
     PyObject_HEAD_INIT(NULL)
     0,                         /*ob_size*/
     "usb.Configuration",   	   /*tp_name*/
@@ -777,9 +770,10 @@ static PyTypeObject Py_usb_Configuration_Type = {
 	Py_usb_Configuration_del	/* destructor */
 };
 
-static void
-set_Configuration_fields(Py_usb_Configuration *configuration,
-						struct usb_config_descriptor *config)
+PYUSB_STATIC void set_Configuration_fields(
+	Py_usb_Configuration *configuration,
+	struct usb_config_descriptor *config
+	)
 {
 	u_int8_t i, j, k;
 	PyObject *t1;
@@ -798,21 +792,28 @@ set_Configuration_fields(Py_usb_Configuration *configuration,
 	for (i = 0; i < config->bNumInterfaces; ++i) {
 		k = config->interface[i].num_altsetting;
 		t1 = PyTuple_New(k);
+
 		if (!t1) return;
+
 		for (j = 0; j < k; ++j)
-			PyTuple_SET_ITEM(t1, j, (PyObject *) new_Interface(config->interface[i].altsetting+j));
+			PyTuple_SET_ITEM(t1, j,
+					(PyObject *) new_Interface(config->interface[i].altsetting+j));
+
 		PyTuple_SET_ITEM(configuration->interfaces, i, t1);
 	}
 }
 
-static Py_usb_Configuration *
-new_Configuration(struct usb_config_descriptor *conf)
+PYUSB_STATIC Py_usb_Configuration *new_Configuration(
+	struct usb_config_descriptor *conf
+	)
 {
 	Py_usb_Configuration *configuration;
+
 	configuration = PyObject_NEW(Py_usb_Configuration, &Py_usb_Configuration_Type);
 
 	if (configuration) {
 		set_Configuration_fields(configuration, conf);
+
 		if (PyErr_Occurred()) {
 			Py_DECREF((PyObject *) configuration);
 			return NULL;
@@ -822,28 +823,7 @@ new_Configuration(struct usb_config_descriptor *conf)
 	return configuration;
 }
 
-/*
- * Device object
- */
-typedef struct _Py_usb_Device {
-	PyObject_HEAD
-	char usbVersion[STRING_ARRAY_SIZE];
-	u_int8_t deviceClass;
-	u_int8_t deviceSubClass;
-	u_int8_t deviceProtocol;
-	u_int8_t maxPacketSize;
-	u_int16_t idVendor;
-	u_int16_t idProduct;
-	char deviceVersion[STRING_ARRAY_SIZE];
-	u_int8_t iManufacturer;
-	u_int8_t iProduct;
-	u_int8_t iSerialNumber;
-	char filename[PATH_MAX + 1];
-	PyObject *configurations;
-	struct usb_device *dev; // necessary for usb_open
-} Py_usb_Device;
-
-static PyMemberDef Py_usb_Device_Members[] = {
+PYUSB_STATIC PyMemberDef Py_usb_Device_Members[] = {
 	{"usbVersion",
 	 T_STRING_INPLACE,
 	 offsetof(Py_usb_Device, usbVersion),
@@ -907,13 +887,15 @@ static PyMemberDef Py_usb_Device_Members[] = {
 	{NULL}
 };
 
-static PyObject *
-Py_usb_Device_open(PyObject *self, PyObject *args)
+PYUSB_STATIC PyObject *Py_usb_Device_open(
+	PyObject *self,
+	PyObject *args
+	)
 {
 	return (PyObject *) new_DeviceHandle((Py_usb_Device *) self);
 }
 
-static PyMethodDef Py_usb_Device_Methods[] = {
+PYUSB_STATIC PyMethodDef Py_usb_Device_Methods[] = {
 	{"open",
 	 Py_usb_Device_open,
 	 METH_NOARGS,
@@ -922,13 +904,14 @@ static PyMethodDef Py_usb_Device_Methods[] = {
 	{NULL, NULL}
 };
 
-static void
-Py_usb_Device_del(PyObject *self)
+PYUSB_STATIC void Py_usb_Device_del(
+	PyObject *self
+	)
 {
 	Py_XDECREF(((Py_usb_Device *) self)->configurations);
 }
 
-static PyTypeObject Py_usb_Device_Type = {
+PYUSB_STATIC PyTypeObject Py_usb_Device_Type = {
     PyObject_HEAD_INIT(NULL)
     0,                         /*ob_size*/
     "usb.Device",   	   	   /*tp_name*/
@@ -978,8 +961,10 @@ static PyTypeObject Py_usb_Device_Type = {
 	Py_usb_Device_del			/* destructor */
 };
 
-static void
-set_Device_fields(Py_usb_Device *device, struct usb_device *dev)
+PYUSB_STATIC void set_Device_fields(
+	Py_usb_Device *device,
+	struct usb_device *dev
+	)
 {
 	struct usb_device_descriptor *desc = &dev->descriptor;
 	u_int8_t i;
@@ -1011,14 +996,16 @@ set_Device_fields(Py_usb_Device *device, struct usb_device *dev)
 	device->dev = dev;
 
 	device->configurations = PyTuple_New(desc->bNumConfigurations);
+
 	if (!device->configurations) return;
 
 	for (i = 0; i < desc->bNumConfigurations; ++i)
 		PyTuple_SET_ITEM(device->configurations, i, (PyObject *) new_Configuration(dev->config+i));
 }
 
-static Py_usb_Device *
-new_Device(struct usb_device *dev)
+PYUSB_STATIC Py_usb_Device *new_Device(
+	struct usb_device *dev
+	)
 {
 	Py_usb_Device *device;
 
@@ -1026,25 +1013,17 @@ new_Device(struct usb_device *dev)
 
 	if (device) {
 		set_Device_fields(device, dev);
+
 		if (PyErr_Occurred()) {
 			Py_DECREF((PyObject *) device);
 			return NULL;
 		}
 	}
+
 	return device;
 }
 
-/*
- * Bus Object
- */
-typedef struct _Py_usb_Bus {
-	PyObject_HEAD
-	char dirname[PATH_MAX + 1];
-	u_int32_t location;
-	PyObject *devices;
-} Py_usb_Bus;
-
-static PyMemberDef Py_usb_Bus_Members[] = {
+PYUSB_STATIC PyMemberDef Py_usb_Bus_Members[] = {
 	{"dirname",
 	 T_STRING_INPLACE,
 	 offsetof(Py_usb_Bus, dirname),
@@ -1066,17 +1045,18 @@ static PyMemberDef Py_usb_Bus_Members[] = {
 	{NULL}
 };
 
-static PyMethodDef Py_usb_Bus_Methods[] = {
+PYUSB_STATIC PyMethodDef Py_usb_Bus_Methods[] = {
 	{NULL, NULL}
 };
 
-static void
-Py_usb_Bus_del(PyObject *self)
+PYUSB_STATIC void Py_usb_Bus_del(
+	PyObject *self
+	)
 {
 	Py_XDECREF(((Py_usb_Bus *) self)->devices);
 }
 
-static PyTypeObject Py_usb_Bus_Type = {
+PYUSB_STATIC PyTypeObject Py_usb_Bus_Type = {
     PyObject_HEAD_INIT(NULL)
     0,                         /*ob_size*/
     "usb.Bus",   	   	   	   /*tp_name*/
@@ -1126,8 +1106,10 @@ static PyTypeObject Py_usb_Bus_Type = {
 	Py_usb_Bus_del			/* destructor */
 };
 
-static Py_usb_Bus *
-new_Bus(struct usb_bus *b) {
+PYUSB_STATIC Py_usb_Bus *new_Bus(
+	struct usb_bus *b
+	)
+{
 	Py_usb_Bus *bus;
 	u_int32_t i;
 	struct usb_device *dev;
@@ -1139,10 +1121,12 @@ new_Bus(struct usb_bus *b) {
 		strcpy(bus->dirname, b->dirname);
 		for(dev = b->devices, i = 0; dev; dev = dev->next) ++i;
 		bus->devices = PyTuple_New(i);
+
 		if(!bus->devices) {
 			Py_DECREF((PyObject *) bus);
 			return NULL;
 		}
+
 		for(dev = b->devices, i=0; dev; dev = dev->next, ++i)
 			PyTuple_SET_ITEM(bus->devices, i, (PyObject *) new_Device(dev));
 
@@ -1151,26 +1135,22 @@ new_Bus(struct usb_bus *b) {
 			bus = NULL;
 		}
 	}
+
 	return bus;
 }
 
-/*
- * DeviceHandle object
- */
-typedef struct _Py_usb_DeviceHandle {
-	PyObject_HEAD
-	usb_dev_handle *deviceHandle;
-} Py_usb_DeviceHandle;
-
-static PyMemberDef Py_usb_DeviceHandle_Members[] = {
+PYUSB_STATIC PyMemberDef Py_usb_DeviceHandle_Members[] = {
 	{NULL}
 };
 
 /*
- * def controlMsg(requestType, request, data, value = 0, index = 0, timeout = 100)
+ * def controlMsg(requestType, request, bytes, value = 0, index = 0, timeout = 100)
  */
-static PyObject *
-Py_usb_DeviceHandle_controlMsg(PyObject *self, PyObject *args, PyObject *kwds)
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_controlMsg(
+	PyObject *self,
+	PyObject *args,
+	PyObject *kwds
+	)
 {
 	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
 	int requestType;
@@ -1181,6 +1161,8 @@ Py_usb_DeviceHandle_controlMsg(PyObject *self, PyObject *args, PyObject *kwds)
 	PyObject *data;
 	int size;
 	int timeout = 100;
+	int ret;
+
 	static char *kwlist[] = {
 		"requestType",
 		"request",
@@ -1205,64 +1187,139 @@ Py_usb_DeviceHandle_controlMsg(PyObject *self, PyObject *args, PyObject *kwds)
 	}
 
 	bytes = (char *) getBuffer(data, &size);
-	if (bytes) {
-		int i;
-	   	for (i = 0; i < size; ++i) {
-			printf("%d ", bytes[i]);
-			if (i && !(i % 20)) putchar('\n');
-		}
-		PyMem_Free(bytes);
+
+	if (!bytes) return NULL;
+
+#ifdef DUMP_PARAMS
+
+	printf("controlMsg params:\n"
+		   "\trequestType: %d\n"
+		   "\trequest: %d\n"
+		   "\tvalue: %d\n"
+		   "\tindex: %d\n"
+		   "\ttimeout: %d\n",
+		   requestType,
+		   request,
+		   value,
+		   index,
+		   timeout);
+
+	printf("controlMsg buffer param:\n");
+	printBuffer(bytes, size);
+
+#endif /* DUMP_PARAMS */
+
+	ret = usb_control_msg(_self->deviceHandle,
+						  requestType,
+						  request,
+						  value,
+						  index,
+						  bytes,
+						  size,
+						  timeout);
+
+	free(bytes);
+
+	if (ret < 0) {
+		PyUSB_Error();
+		return NULL;
 	} else {
+		return PyInt_FromLong(ret);
+	}
+}
+
+/*
+ * def setConfiguration(configuration)
+ */
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_setConfiguration(
+	PyObject *self,
+	PyObject *args
+	)
+{
+	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
+	int configuration;
+
+	if (PyNumber_Check(args)) {
+		configuration = (int) PyInt_AS_INT(args);
+	} else if (PyObject_TypeCheck(args, &Py_usb_Configuration_Type)) {
+		configuration = ((Py_usb_Configuration *) args)->value;
+	} else {
+		PyErr_SetString(PyExc_TypeError, "The argument is invalid to DeviceHandle.setConfiguration");
 		return NULL;
 	}
-	Py_RETURN_NONE;
+
+	if (usb_set_configuration(_self->deviceHandle, configuration) < 0) {
+		PyUSB_Error();
+		return NULL;
+	} else {
+		Py_RETURN_NONE;
+	}
 }
 
-static PyObject *
-Py_usb_DeviceHandle_setConfiguration(PyObject *self, PyObject *args)
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_claimInterface(
+	PyObject *self,
+	PyObject *args
+	)
 {
 	PyErr_SetString(PyExc_USBError, "not implemented");
 	return NULL;
 }
 
-static PyObject *
-Py_usb_DeviceHandle_claimInterface(PyObject *self, PyObject *args)
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_releaseInterface(
+	PyObject *self,
+	PyObject *args
+	)
 {
 	PyErr_SetString(PyExc_USBError, "not implemented");
 	return NULL;
 }
 
-static PyObject *
-Py_usb_DeviceHandle_releaseInterface(PyObject *self, PyObject *args)
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_setAltInterface(
+	PyObject *self,
+	PyObject *args
+	)
+{
+	int altInterface;
+	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
+
+	if (PyNumber_Check(args)) {
+		altInterface = (int) PyNumber_AS_INT(args);
+	} else if (PyObject_TypeCheck(args, &Py_usb_Interface_Type)) {
+		altInterface = ((Py_usb_Interface *) args)->alternateSetting;
+	} else {
+		PyErr_SetString(PyExc_TypeError, "The argument is invalid to DeviceHandle.setAltSetting");
+		return NULL;
+	}
+
+	if (usb_set_altinterface(_self->deviceHandle, altInterface) < 0) {
+		PyUSB_Error();
+		return NULL;
+	} else {
+		Py_RETURN_NONE;
+	}
+}
+
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_getEndpoint(
+	PyObject *self,
+	PyObject *args
+	)
 {
 	PyErr_SetString(PyExc_USBError, "not implemented");
 	return NULL;
 }
 
-static PyObject *
-Py_usb_DeviceHandle_setAltInterface(PyObject *self, PyObject *args)
-{
-	PyErr_SetString(PyExc_USBError, "not implemented");
-	return NULL;
-}
-
-static PyObject *
-Py_usb_DeviceHandle_getEndpoint(PyObject *self, PyObject *args)
-{
-	PyErr_SetString(PyExc_USBError, "not implemented");
-	return NULL;
-}
-
-static PyMethodDef Py_usb_DeviceHandle_Methods[] = {
+PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	{"controlMsg",
 	 (PyCFunction) Py_usb_DeviceHandle_controlMsg,
 	 METH_VARARGS | METH_KEYWORDS,
-	 ""},
+	 "Performs a control request to the default control pipe on a device.\n"
+	 "Returns the number of bytes written."},
 
 	{"setConfiguration",
 	 Py_usb_DeviceHandle_setConfiguration,
  	 METH_O,
-	 ""},	 
+	 "Sets the active configuration of a device.\n"
+	 "The configuration parameter is a configuration value or a Configuration object"},	 
 
 	{"claimInterface",
 	 Py_usb_DeviceHandle_claimInterface,
@@ -1287,14 +1344,15 @@ static PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	{NULL, NULL}
 };
 
-static void
-Py_usb_DeviceHandle_del(PyObject *self)
+PYUSB_STATIC void Py_usb_DeviceHandle_del(
+	PyObject *self
+	)
 {
 	struct usb_dev_handle *h = ((Py_usb_DeviceHandle *) self)->deviceHandle;
 	if (h) usb_close(h);
 }
 
-static PyTypeObject Py_usb_DeviceHandle_Type = {
+PYUSB_STATIC PyTypeObject Py_usb_DeviceHandle_Type = {
     PyObject_HEAD_INIT(NULL)
     0,                         /*ob_size*/
     "usb.DeviceHandle",   	   /*tp_name*/
@@ -1344,8 +1402,9 @@ static PyTypeObject Py_usb_DeviceHandle_Type = {
 	Py_usb_DeviceHandle_del		/* destructor */
 };
 
-static Py_usb_DeviceHandle *
-new_DeviceHandle(Py_usb_Device *device)
+PYUSB_STATIC Py_usb_DeviceHandle *new_DeviceHandle(
+	Py_usb_Device *device
+	)
 {
 	Py_usb_DeviceHandle *dh;
 	struct usb_dev_handle *h;
@@ -1354,11 +1413,13 @@ new_DeviceHandle(Py_usb_Device *device)
 
 	if (dh) {
 		h = usb_open(device->dev);
+
 		if (!h) {
 			PyUSB_Error();
 			Py_DECREF((PyObject *) dh);
 			return NULL;
 		}
+
 		dh->deviceHandle = h;
 	}
 
@@ -1369,8 +1430,10 @@ new_DeviceHandle(Py_usb_Device *device)
  * Global functions
  */
 
-static PyObject *
-busses(PyObject *self, PyObject *args)
+PYUSB_STATIC PyObject *busses(
+	PyObject *self,
+	PyObject *args
+	)
 {
 	PyObject *tuple;
 	struct usb_bus *bus, *b;
@@ -1396,6 +1459,7 @@ busses(PyObject *self, PyObject *args)
 	for(i=0,b=bus;b;b=b->next) ++i;
 	tuple = PyTuple_New(i);
 	if (!tuple) return NULL;
+
 	for(b=bus,i=0;b;++i,b=b->next)
 		PyTuple_SET_ITEM(tuple, i, (PyObject *) new_Bus(b));
 
@@ -1403,10 +1467,11 @@ busses(PyObject *self, PyObject *args)
 		Py_DECREF(tuple);
 		return NULL;
 	}
+
 	return tuple;
 }
 
-static PyMethodDef usb_Methods[] = {
+PYUSB_STATIC PyMethodDef usb_Methods[] = {
 	{"busses", busses, METH_NOARGS, "Returns a tuple with the usb busses"},
 	{NULL, NULL}
 };
