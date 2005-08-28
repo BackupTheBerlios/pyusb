@@ -18,4 +18,4 @@ distclean: clean
 .PHONY: all clean distclean
 
 $(BIN): $(OBJS)
-	$(CC) $(LDFLAGS) -o $(BIN) $<
+	$(CC) $(LDFLAGS) -o $@ $^
