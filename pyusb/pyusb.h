@@ -95,6 +95,7 @@ typedef struct _Py_usb_Bus {
 typedef struct _Py_usb_DeviceHandle {
 	PyObject_HEAD
 	usb_dev_handle *deviceHandle;
+	int interfaceClaimed;
 } Py_usb_DeviceHandle;
 
 /*

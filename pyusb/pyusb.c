@@ -19,7 +19,7 @@
 #include <windows.h>
 #endif /* _WIN32 */
 
-PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.4 2005/08/21 23:53:38 wander Exp $";
+PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.5 2005/09/02 00:22:45 wander Exp $";
 
 /*
  * USBError
@@ -28,8 +28,10 @@ PYUSB_STATIC PyObject *PyExc_USBError;
 
 #define PyUSB_Error() PyErr_SetString(PyExc_USBError, usb_strerror())
 
-#ifndef NDEBUG
-#define DUMP_PARAMS
+#if !defined(NDEBUG)
+#define DUMP_PARAMS 1
+#else
+#define DUMP_PARAMS 0
 #endif /* NDEBUG */
 
 #ifndef NDEBUG
@@ -45,12 +47,29 @@ PYUSB_STATIC void printBuffer(
 	int i;
 
    	for (i = 0; i < 0; ++i) {
-		printf("%2x ", buffer[i]);
-		if (i && !(i % 20)) putchar('\n');
+		fprintf(stderr, "%2x ", buffer[i]);
+		if (i && !(i % 20)) fputc('\n', stderr);
 	}
 }
 
 #endif /* NDEBUG */
+
+/*
+ * Converts a object with number procotol to int type
+ */
+PYUSB_STATIC int py_NumberAsInt(
+	PyObject *obj
+	)
+{
+	PyObject *number = PyNumber_Int(obj);
+	if (number) {
+		int ret = PyInt_AS_LONG(number);
+		Py_DECREF(number);
+		return ret;
+	} else {
+		return 0;
+	}
+}
 
 /*
  * Gets a byte from a PyObject
@@ -65,7 +84,7 @@ PYUSB_STATIC u_int8_t getByte(
 	u_int8_t byte;
 
 	if (PyNumber_Check(obj)) {
-		byte = (u_int8_t) PyNumber_AsLong(obj);
+		byte = (u_int8_t) py_NumberAsInt(obj);
 	} else if (PyString_Check(obj) || PyUnicode_Check(obj)) {
 		return (u_int8_t) PyString_AsString(obj)[0];
 	} else if (PySequence_Check(obj)) {
@@ -1192,7 +1211,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_controlMsg(
 
 #ifdef DUMP_PARAMS
 
-	printf("controlMsg params:\n"
+	fprintf(stderr, "controlMsg params:\n"
 		   "\trequestType: %d\n"
 		   "\trequest: %d\n"
 		   "\tvalue: %d\n"
@@ -1204,7 +1223,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_controlMsg(
 		   index,
 		   timeout);
 
-	printf("controlMsg buffer param:\n");
+	fprintf(stderr, "controlMsg buffer param:\n");
 	printBuffer(bytes, size);
 
 #endif /* DUMP_PARAMS */
@@ -1240,13 +1259,21 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_setConfiguration(
 	int configuration;
 
 	if (PyNumber_Check(args)) {
-		configuration = (int) PyInt_AS_INT(args);
+		configuration = (int) PyInt_AS_LONG(args);
 	} else if (PyObject_TypeCheck(args, &Py_usb_Configuration_Type)) {
 		configuration = ((Py_usb_Configuration *) args)->value;
 	} else {
 		PyErr_SetString(PyExc_TypeError, "The argument is invalid to DeviceHandle.setConfiguration");
 		return NULL;
 	}
+
+#if DUMP_PARAMS
+	
+	fprintf(stderr,
+			"setConfiguration params:\n\tconfiguration: %d\n",
+			configuration);
+
+#endif /* DUMP_PARAMS */
 
 	if (usb_set_configuration(_self->deviceHandle, configuration) < 0) {
 		PyUSB_Error();
@@ -1261,8 +1288,35 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_claimInterface(
 	PyObject *args
 	)
 {
-	PyErr_SetString(PyExc_USBError, "not implemented");
-	return NULL;
+	int interfaceNumber;
+	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
+
+	if (PyNumber_Check(args)) {
+		interfaceNumber = py_NumberAsInt(args);
+		if (PyErr_Occurred()) return NULL;
+	} else if (PyObject_TypeCheck(args, &Py_usb_Interface_Type)) {
+		interfaceNumber = ((Py_usb_Interface *) args)->interfaceNumber;
+	} else {
+		PyErr_SetString(PyExc_TypeError, "The argument is invalid to DeviceHandle.claimInterface");
+		return NULL;
+	}
+
+#if DUMP_PARAMS
+
+	fprintf(stderr,
+			"claimInterface params:\n\tinterfaceNumber: %d\n",
+			interfaceNumber);
+
+#endif /* DUMP_PARAMS */
+
+	if (usb_claim_interface(_self->deviceHandle, interfaceNumber)) {
+		PyUSB_Error();
+		return NULL;
+	} else {
+		_self->interfaceClaimed = interfaceNumber;
+	}
+
+	Py_RETURN_NONE;
 }
 
 PYUSB_STATIC PyObject *Py_usb_DeviceHandle_releaseInterface(
@@ -1270,8 +1324,19 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_releaseInterface(
 	PyObject *args
 	)
 {
-	PyErr_SetString(PyExc_USBError, "not implemented");
-	return NULL;
+	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
+
+	if (-1 == _self->interfaceClaimed) {
+		if (usb_release_interface(_self->deviceHandle, _self->interfaceClaimed)) {
+			PyUSB_Error();
+			return NULL;
+		}
+	} else {
+		PyErr_SetString(PyExc_ValueError, "No interface claimed");
+		return NULL;
+	}
+
+	Py_RETURN_NONE;
 }
 
 PYUSB_STATIC PyObject *Py_usb_DeviceHandle_setAltInterface(
@@ -1283,13 +1348,22 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_setAltInterface(
 	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
 
 	if (PyNumber_Check(args)) {
-		altInterface = (int) PyNumber_AS_INT(args);
+		altInterface = (int) py_NumberAsInt(args);
+		if (PyErr_Occurred()) return NULL;
 	} else if (PyObject_TypeCheck(args, &Py_usb_Interface_Type)) {
 		altInterface = ((Py_usb_Interface *) args)->alternateSetting;
 	} else {
 		PyErr_SetString(PyExc_TypeError, "The argument is invalid to DeviceHandle.setAltSetting");
 		return NULL;
 	}
+
+#if DUMP_PARAMS
+
+	fprintf(stderr,
+			"setAltInterface params:\n\taltInterface: %d\n",
+			altInterface);
+
+#endif /* DUMP_PARAMS */
 
 	if (usb_set_altinterface(_self->deviceHandle, altInterface) < 0) {
 		PyUSB_Error();
@@ -1328,7 +1402,7 @@ PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 
 	{"releaseInterface",
 	 Py_usb_DeviceHandle_releaseInterface,
-	 METH_O,
+	 METH_NOARGS,
 	 ""},
 	
 	{"setAltInterface",
@@ -1348,8 +1422,17 @@ PYUSB_STATIC void Py_usb_DeviceHandle_del(
 	PyObject *self
 	)
 {
-	struct usb_dev_handle *h = ((Py_usb_DeviceHandle *) self)->deviceHandle;
-	if (h) usb_close(h);
+	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
+	struct usb_dev_handle *h = _self->deviceHandle;
+
+	if (h) {
+		if (-1 != _self->interfaceClaimed) {
+			usb_release_interface(_self->deviceHandle, 
+								  _self->interfaceClaimed);
+		}
+
+		usb_close(_self->deviceHandle);
+	}
 }
 
 PYUSB_STATIC PyTypeObject Py_usb_DeviceHandle_Type = {
@@ -1421,6 +1504,7 @@ PYUSB_STATIC Py_usb_DeviceHandle *new_DeviceHandle(
 		}
 
 		dh->deviceHandle = h;
+		dh->interfaceClaimed = -1;
 	}
 
 	return dh;
@@ -1446,7 +1530,7 @@ PYUSB_STATIC PyObject *busses(
 
 	if (usb_find_devices() < 0) {
 		PyUSB_Error();
-		return;
+		return NULL;
 	}
 
 	bus = usb_get_busses();
