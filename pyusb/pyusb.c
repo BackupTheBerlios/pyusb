@@ -19,7 +19,9 @@
 #include <windows.h>
 #endif /* _WIN32 */
 
-PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.5 2005/09/02 00:22:45 wander Exp $";
+#define DEFAULT_TIMEOUT 100
+
+PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.6 2005/09/04 23:52:13 wander Exp $";
 
 /*
  * USBError
@@ -168,6 +170,28 @@ PYUSB_STATIC u_int8_t *getBuffer(
 }
 
 /*
+ * Build a numeric tuple from the buffer values
+ */
+PYUSB_STATIC PyObject *buildTuple(
+	char *buffer,
+	int size
+	)
+{
+	PyObject *ret;
+	int i;
+
+	ret = PyTuple_New(size);
+
+	if (ret) {
+		for (i = 0; i < size; ++i) {
+			PyTuple_SET_ITEM(ret, i, PyLong_FromLong(buffer[i]));
+		}
+	}
+
+	return ret;
+}
+
+/*
  * Add a numeric constant to the dictionary
  */
 PYUSB_STATIC void addConstant(
@@ -255,43 +279,43 @@ PYUSB_STATIC void installModuleConstants(
 	addConstant(dict, "ERROR_BEGIN", USB_ERROR_BEGIN);
 }
 
-PYUSB_STATIC PyMemberDef Py_usb_EndpointDescriptor_Members[] = {
+PYUSB_STATIC PyMemberDef Py_usb_Endpoint_Members[] = {
 	{"address",
 	 T_UBYTE,
-	 offsetof(Py_usb_EndpointDescriptor, address),
+	 offsetof(Py_usb_Endpoint, address),
 	 READONLY,
 	 "Endpoint address"},
 
 	{"type",
 	 T_UBYTE,
-	 offsetof(Py_usb_EndpointDescriptor, type),
+	 offsetof(Py_usb_Endpoint, type),
 	 READONLY,
 	 "Transfer type"},
 
 	{"maxPacketSize",
 	 T_USHORT,
-	 offsetof(Py_usb_EndpointDescriptor, maxPacketSize),
+	 offsetof(Py_usb_Endpoint, maxPacketSize),
 	 READONLY,
 	 "Maximum packet size"},
 
 	{"interval",
 	 T_UBYTE,
-	 offsetof(Py_usb_EndpointDescriptor, interval),
+	 offsetof(Py_usb_Endpoint, interval),
 	 READONLY,
 	 "Interval polling at miliseconds"},
 
 	{NULL}
 };
 
-PYUSB_STATIC PyMethodDef Py_usb_EndpointDescriptor_Methods[] = {
+PYUSB_STATIC PyMethodDef Py_usb_Endpoint_Methods[] = {
 	{NULL, NULL}
 };
 
-PYUSB_STATIC PyTypeObject Py_usb_EndpointDescriptor_Type = {
+PYUSB_STATIC PyTypeObject Py_usb_Endpoint_Type = {
     PyObject_HEAD_INIT(NULL)
     0,                         /*ob_size*/
-    "usb.EndpointDescriptor",  /*tp_name*/
-    sizeof(Py_usb_EndpointDescriptor), /*tp_basicsize*/
+    "usb.Endpoint",  /*tp_name*/
+    sizeof(Py_usb_Endpoint), /*tp_basicsize*/
     0,                         /*tp_itemsize*/
     0,                         /*tp_dealloc*/
     0,                         /*tp_print*/
@@ -309,15 +333,15 @@ PYUSB_STATIC PyTypeObject Py_usb_EndpointDescriptor_Type = {
     0,                         /*tp_setattro*/
     0,                         /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,        /*tp_flags*/
-    "EndpointDescriptor object", /* tp_doc */
+    "Endpoint object", /* tp_doc */
     0,                         /* tp_traverse */
     0,                         /* tp_clear */
     0,                         /* tp_richcompare */
     0,                         /* tp_weaklistoffset */
     0,                         /* tp_iter */
     0,                         /* tp_iternext */
-    Py_usb_EndpointDescriptor_Methods,   /* tp_methods */
-    Py_usb_EndpointDescriptor_Members,   /* tp_members */
+    Py_usb_Endpoint_Methods,   /* tp_methods */
+    Py_usb_Endpoint_Members,   /* tp_members */
     0,                         /* tp_getset */
     0,                         /* tp_base */
     0,                         /* tp_dict */
@@ -337,8 +361,8 @@ PYUSB_STATIC PyTypeObject Py_usb_EndpointDescriptor_Type = {
 	0,						   /* destructor */
 };
 
-PYUSB_STATIC void set_EndpointDescriptor_fields(
-	Py_usb_EndpointDescriptor *endpoint,
+PYUSB_STATIC void set_Endpoint_fields(
+	Py_usb_Endpoint *endpoint,
 	struct usb_endpoint_descriptor *ep
 	)
 {
@@ -350,192 +374,17 @@ PYUSB_STATIC void set_EndpointDescriptor_fields(
 	// endpoint->synchAddress - ep->bSynchAddress;
 }
 
-PYUSB_STATIC Py_usb_EndpointDescriptor *new_EndpointDescriptor(
+PYUSB_STATIC Py_usb_Endpoint *new_Endpoint(
 	struct usb_endpoint_descriptor *ep
 	)
 {
-	Py_usb_EndpointDescriptor *endpoint;
+	Py_usb_Endpoint *endpoint;
 
-	endpoint = PyObject_New(Py_usb_EndpointDescriptor,
-							&Py_usb_EndpointDescriptor_Type);
+	endpoint = PyObject_New(Py_usb_Endpoint,
+							&Py_usb_Endpoint_Type);
 
 	if (endpoint && ep)
-		set_EndpointDescriptor_fields(endpoint, ep);
-
-	return endpoint;
-}
-
-PYUSB_STATIC PyMemberDef Py_usb_Endpoint_Members[] = {
-	{NULL}
-};
-
-PYUSB_STATIC PyObject *Py_usb_Endpoint_write(
-	PyObject *self, PyObject *args
-	)
-{
-	PyErr_SetString(PyExc_USBError, "not implemented");
-	return NULL;
-}
-
-PYUSB_STATIC PyObject *Py_usb_Endpoint_read(
-	PyObject *self,
-	PyObject *args
-	)
-{
-	PyErr_SetString(PyExc_USBError, "not implemented");
-	return NULL;
-}
-
-PYUSB_STATIC PyObject *Py_usb_Endpoint_reset(
-	PyObject *self,
-	PyObject *args
-	)
-{
-	PyErr_SetString(PyExc_USBError, "not implemented");
-	return NULL;
-}
-
-PYUSB_STATIC PyObject *Py_usb_Endpoint_clearHalt(
-	PyObject *self,
-	PyObject *args
-	)
-{
-	PyErr_SetString(PyExc_USBError, "not implemented");
-	return NULL;
-}
-
-PYUSB_STATIC PyMethodDef Py_usb_Endpoint_Methods[] = {
-	{"write",
-	 Py_usb_Endpoint_write,
-	 METH_VARARGS,
-	 "Writes data according the endpoint type.\n"
-	 "\tdata - sequence of data to write.\n"
-	 "\ttimeout - timeout at miliseconds of the operation. Default 100.\n"
-	 "Returns the number of bytes written."},
-
-	{"read",
-	 Py_usb_Endpoint_read,
-	 METH_VARARGS,
-	 "Reads data according the endpoint type.\n"
-	 "\tsize - number of bytes to read.\n"
-	 "\ttimeout - timeout at miliseconds of the operation. Default 100.\n"
-	 "Returns a tuple with data read."},
-
-	{"reset",
-	 Py_usb_Endpoint_reset,
-	 METH_NOARGS,
-	 "Reset the endpoint."},
-
-	{"clearHalt",
-	 Py_usb_Endpoint_clearHalt,
-	 METH_NOARGS,
-	 "Clears any halt state on the endpoint."},
-
-	{NULL, NULL}
-};
-
-PYUSB_STATIC void Py_usb_Endpoint_del(
-	PyObject *self
-	)
-{
-	Py_XDECREF((PyObject *) ((Py_usb_Endpoint *) self)->deviceHandle);
-}
-
-PYUSB_STATIC PyTypeObject Py_usb_Endpoint_Type = {
-    PyObject_HEAD_INIT(NULL)
-    0,                         /*ob_size*/
-    "usb.Endpoint",        	   /*tp_name*/
-    sizeof(Py_usb_Endpoint),   /*tp_basicsize*/
-    0,                         /*tp_itemsize*/
-    0,                         /*tp_dealloc*/
-    0,                         /*tp_print*/
-    0,                         /*tp_getattr*/
-    0,                         /*tp_setattr*/
-    0,                         /*tp_compare*/
-    0,                         /*tp_repr*/
-    0,                         /*tp_as_number*/
-    0,                         /*tp_as_sequence*/
-    0,                         /*tp_as_mapping*/
-    0,                         /*tp_hash */
-    0,                         /*tp_call*/
-    0,                         /*tp_str*/
-    0,                         /*tp_getattro*/
-    0,                         /*tp_setattro*/
-    0,                         /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,        /*tp_flags*/
-    "Endpoint object",     	   /* tp_doc */
-    0,                         /* tp_traverse */
-    0,                         /* tp_clear */
-    0,                         /* tp_richcompare */
-    0,                         /* tp_weaklistoffset */
-    0,                         /* tp_iter */
-    0,                         /* tp_iternext */
-    Py_usb_Endpoint_Methods,   /* tp_methods */
-    Py_usb_Endpoint_Members,   /* tp_members */
-    0,                         /* tp_getset */
-    &Py_usb_EndpointDescriptor_Type, /* tp_base */
-    0,                         /* tp_dict */
-    0,                         /* tp_descr_get */
-    0,                         /* tp_descr_set */
-    0,                         /* tp_dictoffset */
-    0,					       /* tp_init */
-    0,                         /* tp_alloc */
-    PyType_GenericNew,         /* tp_new */
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	Py_usb_Endpoint_del		   /* destructor */
-};
-
-PYUSB_STATIC Py_usb_Endpoint *new_Endpoint(
-	struct usb_endpoint_descriptor *ep,
-	struct _Py_usb_DeviceHandle *h
-	)
-{
-	Py_usb_Endpoint *endpoint;
-
-	endpoint = PyObject_NEW(Py_usb_Endpoint, &Py_usb_Endpoint_Type);
-
-	if (endpoint) {
-		if (ep) set_EndpointDescriptor_fields((Py_usb_EndpointDescriptor *) endpoint, ep);
-		if (h) endpoint->deviceHandle = h;
-	}
-
-	return endpoint;
-}
-
-PYUSB_STATIC void set_Endpoint_fields(
-	Py_usb_Endpoint *endpoint,
-	Py_usb_EndpointDescriptor *ep
-	)
-{
-	Py_usb_EndpointDescriptor *epd = (Py_usb_EndpointDescriptor *) endpoint;
-
-	epd->address = ep->address;
-	epd->type = ep->type;
-	epd->maxPacketSize = ep->maxPacketSize;
-	epd->interval = ep->interval;
-	epd->refresh = ep->refresh;
-	//epd->synchAddress - ep->synchAddress;
-}
-
-PYUSB_STATIC Py_usb_Endpoint *new_Endpoint2(
-	Py_usb_EndpointDescriptor *ep,
-	struct _Py_usb_DeviceHandle *h
-	)
-{
-	Py_usb_Endpoint *endpoint;
-
-	endpoint = PyObject_NEW(Py_usb_Endpoint, &Py_usb_Endpoint_Type);
-
-	if (endpoint) {
-		if (ep) set_Endpoint_fields(endpoint, ep);
-		if (h) endpoint->deviceHandle = h;
-	}
+		set_Endpoint_fields(endpoint, ep);
 
 	return endpoint;
 }
@@ -663,7 +512,7 @@ PYUSB_STATIC void set_Interface_fields(
 
 	for (index = 0; index < i->bNumEndpoints; ++index)
 		PyTuple_SET_ITEM(interface->endpoints, index,
-						(PyObject *) new_EndpointDescriptor(i->endpoint+index));
+						(PyObject *) new_Endpoint(i->endpoint+index));
 }
 
 PYUSB_STATIC Py_usb_Interface *new_Interface(
@@ -1326,10 +1175,12 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_releaseInterface(
 {
 	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
 
-	if (-1 == _self->interfaceClaimed) {
+	if (-1 != _self->interfaceClaimed) {
 		if (usb_release_interface(_self->deviceHandle, _self->interfaceClaimed)) {
 			PyUSB_Error();
 			return NULL;
+		} else {
+			_self->interfaceClaimed = -1;
 		}
 	} else {
 		PyErr_SetString(PyExc_ValueError, "No interface claimed");
@@ -1373,13 +1224,285 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_setAltInterface(
 	}
 }
 
-PYUSB_STATIC PyObject *Py_usb_DeviceHandle_getEndpoint(
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_bulkWrite(
 	PyObject *self,
 	PyObject *args
 	)
 {
-	PyErr_SetString(PyExc_USBError, "not implemented");
-	return NULL;
+	int endpoint;
+	int timeout = DEFAULT_TIMEOUT;
+	char *data;
+	int size;
+	PyObject *bytes;
+	int ret;
+	PyObject *retObj;
+	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
+
+	if (!PyArg_ParseTuple(args,
+						  "iO|i",
+						  &endpoint,
+						  &bytes,
+						  &timeout)) {
+		return NULL;
+	}
+
+	data = getBuffer(bytes, &size);
+	if (!data) return NULL;
+
+#ifdef DUMP_PARAMS
+
+	fprintf(stderr,
+			"bulkWrite params:\n"
+			"\tendpoint: %d\n"
+			"\ttimeout: %d\n",
+			endpoint,
+			timeout);
+
+	fprintf(stderr, "bulkWrite buffer param:\n");
+	printBuffer(data, size);
+
+#endif /* DUMP_PARAMS */
+
+	ret = usb_bulk_write(_self->deviceHandle, endpoint, data, size, timeout);
+
+	if (ret < 0) {
+		PyUSB_Error();
+		return NULL;
+	} else {
+		retObj = PyLong_FromLong(ret);
+	}
+
+	return retObj;
+}
+
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_bulkRead(
+	PyObject *self,
+	PyObject *args
+	)
+{
+	int endpoint;
+	int timeout = DEFAULT_TIMEOUT;
+	char *buffer;
+	int size;
+	PyObject *ret;
+	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
+
+	if (PyArg_ParseTuple(args,
+						 "ii|i",
+						 &endpoint,
+						 &size,
+						 &timeout)) {
+		return NULL;
+	}
+
+#ifdef DUMP_PARAMS
+
+	fprintf(stderr,
+			"bulkRead params:\n"
+			"\tendpoint: %d\n"
+			"\tsize: %d\n"
+			"\ttimeout: %d\n",
+			endpoint,
+			size,
+			timeout);
+
+#endif /* DUMP_PARAMS */
+
+	buffer = (char *) PyMem_Malloc(size);
+	if (!buffer) return NULL;
+
+	size = usb_bulk_read(_self->deviceHandle, endpoint, buffer, size, timeout);
+
+	if (size < 0) {
+		PyMem_Free(buffer);
+		PyUSB_Error();
+		return NULL;
+	} else {
+		ret = buildTuple(buffer, size);
+		PyMem_Free(buffer);
+	}
+
+	return ret;
+}
+
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_interruptWrite(
+	PyObject *self,
+	PyObject *args
+	)
+{
+	int endpoint;
+	int timeout = DEFAULT_TIMEOUT;
+	char *data;
+	int size;
+	PyObject *bytes;
+	int ret;
+	PyObject *retObj;
+	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
+
+	if (!PyArg_ParseTuple(args,
+						  "iO|i",
+						  &endpoint,
+						  &bytes,
+						  &timeout)) {
+		return NULL;
+	}
+
+	data = getBuffer(bytes, &size);
+	if (!data) return NULL;
+
+#ifdef DUMP_PARAMS
+
+	fprintf(stderr,
+			"interruptWrite params:\n"
+			"\tendpoint: %d\n"
+			"\ttimeout: %d\n",
+			endpoint,
+			timeout);
+
+	fprintf(stderr, "interruptWrite buffer param:\n");
+	printBuffer(data, size);
+
+#endif /* DUMP_PARAMS */
+
+	ret = usb_interrupt_write(_self->deviceHandle, endpoint, data, size, timeout);
+
+	if (ret < 0) {
+		PyUSB_Error();
+		return NULL;
+	} else {
+		retObj = PyLong_FromLong(ret);
+	}
+
+	return retObj;
+}
+
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_interruptRead(
+	PyObject *self,
+	PyObject *args
+	)
+{
+	int endpoint;
+	int timeout = DEFAULT_TIMEOUT;
+	char *buffer;
+	int size;
+	PyObject *ret;
+	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
+
+	if (PyArg_ParseTuple(args,
+						 "ii|i",
+						 &endpoint,
+						 &size,
+						 &timeout)) {
+		return NULL;
+	}
+	
+#ifdef DUMP_PARAMS
+
+	fprintf(stderr,
+			"bulkRead params:\n"
+			"\tendpoint: %d\n"
+			"\tsize: %d\n"
+			"\ttimeout: %d\n",
+			endpoint,
+			size,
+			timeout);
+
+#endif /* DUMP_PARAMS */
+
+	buffer = (char *) PyMem_Malloc(size);
+	if (!buffer) return NULL;
+
+	size = usb_bulk_read(_self->deviceHandle, endpoint, buffer, size, timeout);
+
+	if (size < 0) {
+		PyMem_Free(buffer);
+		PyUSB_Error();
+		return NULL;
+	} else {
+		ret = buildTuple(buffer, size);
+		PyMem_Free(buffer);
+	}
+
+	return ret;
+}
+
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_resetEndpoint(
+	PyObject *self,
+	PyObject *args
+	)
+{
+	int endpoint;
+	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
+
+	if (!PyNumber_Check(args)) {
+		PyErr_SetString(PyExc_TypeError, "Invalid argument");
+		return NULL;
+	}
+
+	endpoint = py_NumberAsInt(args);
+	if (PyErr_Occurred()) return NULL;
+
+#ifdef DUMP_PARAMS
+
+	fprintf(stderr,
+			"resetEndpoint params:\n"
+			"\tendpoint: %d\n",
+			endpoint);
+
+#endif /* DUMP_PARAMS */
+
+	if (usb_resetep(_self->deviceHandle, endpoint)) {
+		PyUSB_Error();
+		return NULL;
+	} else {
+		Py_RETURN_NONE;
+	}
+}
+
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_reset(
+	PyObject *self,
+	PyObject *args
+	)
+{
+	if (usb_reset(((Py_usb_DeviceHandle *) self)->deviceHandle)) {
+		PyUSB_Error();
+		return NULL;
+	} else {
+		Py_RETURN_NONE;
+	}
+}
+
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_clearHalt(
+	PyObject *self,
+	PyObject *args
+	)
+{
+	int endpoint;
+	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
+
+	if (!PyNumber_Check(args)) {
+		PyErr_SetString(PyExc_TypeError, "Invalid argument");
+		return NULL;
+	}
+
+	endpoint = py_NumberAsInt(args);
+	if (PyErr_Occurred()) return NULL;
+
+#ifdef DUMP_PARAMS
+
+	fprintf(stderr,
+			"clearHalt params:\n"
+			"\tendpoint: %d\n",
+			endpoint);
+
+#endif /* DUMP_PARAMS */
+
+	if (usb_clear_halt(_self->deviceHandle, endpoint)) {
+		PyUSB_Error();
+		return NULL;
+	} else {
+		Py_RETURN_NONE;
+	}
 }
 
 PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
@@ -1410,8 +1533,38 @@ PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	 METH_O,
 	 ""},
 
-	{"getEndpoint",
-	 Py_usb_DeviceHandle_getEndpoint,
+	{"bulkWrite",
+	 Py_usb_DeviceHandle_bulkWrite,
+	 METH_VARARGS,
+	 ""},
+
+	{"bulkRead",
+	 Py_usb_DeviceHandle_bulkRead,
+	 METH_VARARGS,
+	 ""},
+
+	{"interruptWrite",
+	 Py_usb_DeviceHandle_interruptWrite,
+	 METH_VARARGS,
+	 ""},
+
+	{"interruptRead",
+	 Py_usb_DeviceHandle_interruptRead,
+	 METH_VARARGS,
+	 ""},
+
+	{"resetEndpoint",
+	 Py_usb_DeviceHandle_resetEndpoint,
+	 METH_O,
+	 ""},
+
+	{"reset",
+	 Py_usb_DeviceHandle_reset,
+	 METH_NOARGS,
+	 ""},
+
+	{"clearHalt",
+	 Py_usb_DeviceHandle_clearHalt,
 	 METH_O,
 	 ""},
 
@@ -1582,10 +1735,6 @@ PyMODINIT_EXPORT PyMODINIT_FUNC initusb(void)
 
 	module = Py_InitModule3("usb", usb_Methods,"USB access module");
 	if (!module) return;
-
-	if (PyType_Ready(&Py_usb_EndpointDescriptor_Type) < 0) return;
-	Py_INCREF(&Py_usb_EndpointDescriptor_Type);
-	PyModule_AddObject(module, "EndpointDescriptor", (PyObject *) &Py_usb_EndpointDescriptor_Type);
 
 	if (PyType_Ready(&Py_usb_Endpoint_Type) < 0) return;
 	Py_INCREF(&Py_usb_Endpoint_Type);

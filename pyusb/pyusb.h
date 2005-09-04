@@ -12,23 +12,15 @@
 /*
  * EndpointDescriptor object
  */
-typedef struct _Py_usb_EndpointDescriptor {
+typedef struct _Py_usb_Endpoint {
 	PyObject_HEAD
 	u_int8_t address;
 	u_int8_t type;
 	u_int16_t maxPacketSize;
 	u_int8_t interval;
 	u_int8_t refresh;
-} Py_usb_EndpointDescriptor;
-
-/*
- * Endpoint Object
- */
-typedef struct _Py_usb_Endpoint {
-	PyObject_HEAD
-	u_int8_t epdescdata[sizeof(Py_usb_EndpointDescriptor)-sizeof(PyObject)];
-	struct _Py_usb_DeviceHandle *deviceHandle;
 } Py_usb_Endpoint;
+
 
 /*
  * Interface Object
@@ -102,46 +94,13 @@ typedef struct _Py_usb_DeviceHandle {
  * Functions prototypes
  */
 
-PYUSB_STATIC void set_EndpointDescriptor_fields(
-	Py_usb_EndpointDescriptor *endpoint,
+PYUSB_STATIC void set_Endpoint_fields(
+	Py_usb_Endpoint *endpoint,
 	struct usb_endpoint_descriptor *ep
-	);
-
-PYUSB_STATIC Py_usb_EndpointDescriptor *new_EndpointDescriptor(
-	struct usb_endpoint_descriptor *ep
-	);
-
-PYUSB_STATIC PyObject *Py_usb_Endpoint_write(
-	PyObject *self, PyObject *args
-	);
-
-PYUSB_STATIC PyObject *Py_usb_Endpoint_read(
-	PyObject *self,
-	PyObject *args
-	);
-
-PYUSB_STATIC PyObject *Py_usb_Endpoint_reset(
-	PyObject *self,
-	PyObject *args
-	);
-
-PYUSB_STATIC PyObject *Py_usb_Endpoint_clearHalt(
-	PyObject *self,
-	PyObject *args
 	);
 
 PYUSB_STATIC Py_usb_Endpoint *new_Endpoint(
-	struct usb_endpoint_descriptor *ep,
-	struct _Py_usb_DeviceHandle *h
-	);
-
-PYUSB_STATIC Py_usb_Endpoint *new_Endpoint2(
-	Py_usb_EndpointDescriptor *ep,
-	struct _Py_usb_DeviceHandle *h
-	);
-
-PYUSB_STATIC void Py_usb_Interface_del(
-	PyObject *self
+	struct usb_endpoint_descriptor *ep
 	);
 
 PYUSB_STATIC void set_Interface_fields(
@@ -206,7 +165,37 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_setAltInterface(
 	PyObject *args
 	);
 
-PYUSB_STATIC PyObject *Py_usb_DeviceHandle_getEndpoint(
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_bulkWrite(
+	PyObject *self,
+	PyObject *args
+	);
+
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_bulkRead(
+	PyObject *self,
+	PyObject *args
+	);
+
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_interruptWrite(
+	PyObject *self,
+	PyObject *args
+	);
+
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_interruptRead(
+	PyObject *self,
+	PyObject *args
+	);
+
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_resetEndpoint(
+	PyObject *self,
+	PyObject *args
+	);
+
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_reset(
+	PyObject *self,
+	PyObject *args
+	);
+
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_clearHalt(
 	PyObject *self,
 	PyObject *args
 	);
