@@ -37,4 +37,5 @@ for bus in busses:
 						print "        Type:",ep.type
 						print "        Max packet size:",ep.maxPacketSize
 						print "        Interval:",ep.interval
+						print "        Direction:", ep.direction
 

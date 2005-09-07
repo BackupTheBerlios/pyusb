@@ -8,7 +8,7 @@ from distutils.core import setup, Extension
 import sys
 
 # necessary to work fine in MacOS
-# many thanks for Damian Staniforth! :-)
+# many thanks to Damian Staniforth! :-)
 if -1 != sys.platform.lower().find("mac"):
 	extra_link_args = ['-framework',
 					   'CoreFoundation',

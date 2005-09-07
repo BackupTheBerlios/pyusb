@@ -21,7 +21,7 @@
 
 #define DEFAULT_TIMEOUT 100
 
-PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.6 2005/09/04 23:52:13 wander Exp $";
+PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.7 2005/09/07 22:29:06 wander Exp $";
 
 /*
  * USBError
@@ -284,25 +284,40 @@ PYUSB_STATIC PyMemberDef Py_usb_Endpoint_Members[] = {
 	 T_UBYTE,
 	 offsetof(Py_usb_Endpoint, address),
 	 READONLY,
-	 "Endpoint address"},
+	 "Contains the endpoint address. This field has the direction field clear,\n"
+	 "the direction field indicates the endpoint direction"},
 
 	{"type",
 	 T_UBYTE,
 	 offsetof(Py_usb_Endpoint, type),
 	 READONLY,
-	 "Transfer type"},
+	 "It contains one of the following values, \n"
+	 "indicating the endpoint transfer type:\n"
+	 "\tENDPOINT_TYPE_CONTROL\n"
+	 "\tENDPOINT_TYPE_ISOCHRONOUS\n"
+	 "\tENDPOINT_TYPE_BULK\n"
+	 "\tENDPOINT_TYPE_INTERRUPT\n"},
 
 	{"maxPacketSize",
 	 T_USHORT,
 	 offsetof(Py_usb_Endpoint, maxPacketSize),
 	 READONLY,
-	 "Maximum packet size"},
+	 "The maximum number of data bytes the endpoint\n"
+	 "can transfer in a transaction."},
 
 	{"interval",
 	 T_UBYTE,
 	 offsetof(Py_usb_Endpoint, interval),
 	 READONLY,
-	 "Interval polling at miliseconds"},
+	 "The maximum latency for polling interrupt endpoints, or\n"
+	 "the interval for polling isochronous endpoints, or the maximum NAK\n"
+	 "rate for high-speed bulk OUT or control endpoints."},
+
+	{"direction",
+	 T_UBYTE,
+	 offsetof(Py_usb_Endpoint, direction),
+	 READONLY,
+	 "Is either ENDPOINT_IN or ENDPOINT_OUT, indicating the endpoint direction."},
 
 	{NULL}
 };
@@ -333,7 +348,7 @@ PYUSB_STATIC PyTypeObject Py_usb_Endpoint_Type = {
     0,                         /*tp_setattro*/
     0,                         /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,        /*tp_flags*/
-    "Endpoint object", /* tp_doc */
+    "Endpoint descriptor object", /* tp_doc */
     0,                         /* tp_traverse */
     0,                         /* tp_clear */
     0,                         /* tp_richcompare */
@@ -366,11 +381,12 @@ PYUSB_STATIC void set_Endpoint_fields(
 	struct usb_endpoint_descriptor *ep
 	)
 {
-	endpoint->address = ep->bEndpointAddress;
+	endpoint->address = ep->bEndpointAddress & 0x7f;
 	endpoint->type = ep->bmAttributes & 3;
 	endpoint->maxPacketSize = ep->wMaxPacketSize;
 	endpoint->interval = ep->bInterval;
 	endpoint->refresh = ep->bRefresh;
+	endpoint->direction = ep->bEndpointAddress >> 7;
 	// endpoint->synchAddress - ep->bSynchAddress;
 }
 
@@ -394,37 +410,40 @@ PYUSB_STATIC PyMemberDef Py_usb_Interface_Members[] = {
 	 T_UBYTE,
 	 offsetof(Py_usb_Interface, interfaceNumber),
 	 READONLY,
-	 "Interface number"},
+	 "Identifies the interface."},
 
 	{"alternateSetting",
 	 T_UBYTE,
 	 offsetof(Py_usb_Interface, alternateSetting),
 	 READONLY,
-	 "Alternate setting number"},
+	 "Alternate setting number."},
 
 	{"interfaceClass",
 	 T_UBYTE,
 	 offsetof(Py_usb_Interface, interfaceClass),
 	 READONLY,
-	 "Interface class"},
+	 "Similar to DeviceClass in the device descriptor, but\n"
+	 "for devices with a class specified by the interface."},
 
 	{"interfaceSubClass",
 	 T_UBYTE,
 	 offsetof(Py_usb_Interface, interfaceSubClass),
 	 READONLY,
-	 "Interface sub-class"},
+	 "Similar to bDeviceSubClass in the device\n"
+	 "descriptor, but for devices with a class defined by the interface."},
 
 	{"interfaceProtocol",
 	 T_UBYTE,
 	 offsetof(Py_usb_Interface, interfaceProtocol),
 	 READONLY,
-	 "Interface protocol"},
+	 "Similar to bDeviceProtocol in the device\n"
+	 "descriptor, but for devices whose class is defined by the interface."},
 
 	{"endpoints",
 	 T_OBJECT,
 	 offsetof(Py_usb_Interface, endpoints),
 	 READONLY,
-	 "Tuple with interface endpoints"},
+	 "Tuple with interface endpoints."},
 	
 	{NULL}
 };
@@ -462,7 +481,7 @@ PYUSB_STATIC PyTypeObject Py_usb_Interface_Type = {
     0,                         /*tp_setattro*/
     0,                         /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,        /*tp_flags*/
-    "Interface object", 	   /* tp_doc */
+    "Interface descriptor object", 	   /* tp_doc */
     0,                         /* tp_traverse */
     0,                         /* tp_clear */
     0,                         /* tp_richcompare */
@@ -540,39 +559,42 @@ PYUSB_STATIC PyMemberDef Py_usb_Configuration_Members[] = {
 	 T_USHORT,
 	 offsetof(Py_usb_Configuration, totalLength),
 	 READONLY,
-	 "The total bytes that the device returns"},
+	 "The number of data bytes that the device returns,\n"
+	 "including the bytes for all of the configuration's interfaces and\n"
+	 "endpoints."},
 
 	{"value",
 	 T_USHORT,
 	 offsetof(Py_usb_Configuration, value),
 	 READONLY,
-	 "Configuration value"},
+	 "Identifies the configuration."},
 
 	{"selfPowered",
 	 T_UBYTE,
 	 offsetof(Py_usb_Configuration, selfPowered),
 	 READONLY,
-	 "True if the device is self powered"},
+	 "True if the device is self powered."},
 
 	{"remoteWakeup",
 	 T_UBYTE,
 	 offsetof(Py_usb_Configuration, remoteWakeup),
 	 READONLY,
-	 "True if the device supports remote wakeup feature"},
+	 "True if the device supports remote wakeup feature."},
 
 	{"maxPower",
 	 T_UBYTE,
 	 offsetof(Py_usb_Configuration, maxPower),
 	 READONLY,
-	 "Specifies the device current. This is the absolute value"},
+	 "Specifies the device current. This is the absolute value,\n"
+	 "already multiplied by 2"},
 
 	{"interfaces",
 	 T_OBJECT,
 	 offsetof(Py_usb_Configuration, interfaces),
 	 READONLY,
 	 "Tuple with a tuple of the configuration interfaces.\n"
-	 "Each element in the first represents a sequence of the\n"
-	 "alternate settings for that interface"},
+	 "Each element represents a sequence of the\n"
+	 "alternate settings for each interface."},
 
 	{NULL}
 };
@@ -610,7 +632,7 @@ PYUSB_STATIC PyTypeObject Py_usb_Configuration_Type = {
     0,                         /*tp_setattro*/
     0,                         /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,        /*tp_flags*/
-    "Configuration object",    /* tp_doc */
+    "Configuration descriptor object",    /* tp_doc */
     0,                         /* tp_traverse */
     0,                         /* tp_clear */
     0,                         /* tp_richcompare */
@@ -696,61 +718,66 @@ PYUSB_STATIC PyMemberDef Py_usb_Device_Members[] = {
 	 T_STRING_INPLACE,
 	 offsetof(Py_usb_Device, usbVersion),
 	 READONLY,
-	 "String containing the usb specification release number"},
+	 "String containing the USB specification number that\n"
+	 "the device and its descriptors comply with."},
 
 	{"deviceClass",
 	 T_UBYTE,
 	 offsetof(Py_usb_Device, deviceClass),
 	 READONLY,
-	 "Device class"},
+	 "For devices that belong to a class, this field may\n"
+	 "name the class."},
 
 	{"deviceSubClass",
 	 T_UBYTE,
 	 offsetof(Py_usb_Device, deviceSubClass),
 	 READONLY,
-	 "Device subclass"},
+	 "For devices that belong to a class, this field may\n"
+	 "specify a subclass within the class."},
 
 	{"deviceProtocol",
 	 T_UBYTE,
 	 offsetof(Py_usb_Device, deviceProtocol),
 	 READONLY,
-	 "Device protocol"},
+	 "This field may specify a protocol defined by the\n"
+	 "selected class or subclass."},
 	
 	{"maxPacketSize",
 	 T_UBYTE,
 	 offsetof(Py_usb_Device, maxPacketSize),
 	 READONLY,
-	 "Maximum packet size for endpoint 0"},
+	 "The maximum packet size for Endpoint 0."},
 
 	{"idVendor",
 	 T_USHORT,
 	 offsetof(Py_usb_Device, idVendor),
 	 READONLY,
-	 "Vendor ID"},
+	 "Unique vendor identifier."},
 
 	{"idProduct",
 	 T_USHORT,
 	 offsetof(Py_usb_Device, idProduct),
 	 READONLY,
-	 "Product ID"},
+	 "The manufacturer assigns a Product ID to identify the\n"
+	 "device."},
 
 	{"deviceVersion",
 	 T_STRING_INPLACE,
 	 offsetof(Py_usb_Device, deviceVersion),
 	 READONLY,
-	 "Device release number"},
+	 "String containing the device's release number."},
 
 	{"filename",
 	 T_STRING_INPLACE,
 	 offsetof(Py_usb_Device, filename),
 	 READONLY,
-	 "file name"},
+	 ""},
 	
 	{"configurations",
 	 T_OBJECT,
 	 offsetof(Py_usb_Device, configurations),
 	 READONLY,
-	 "Tuple with the device configurations"},
+	 "Tuple with the device configurations."},
 
 	{NULL}
 };
@@ -767,7 +794,8 @@ PYUSB_STATIC PyMethodDef Py_usb_Device_Methods[] = {
 	{"open",
 	 Py_usb_Device_open,
 	 METH_NOARGS,
-	 "Open the device. Returns a DeviceHandle object."},
+	 "Open the device for use.\n"
+	 "Returns a DeviceHandle object."},
 
 	{NULL, NULL}
 };
@@ -801,7 +829,7 @@ PYUSB_STATIC PyTypeObject Py_usb_Device_Type = {
     0,                         /*tp_setattro*/
     0,                         /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,        /*tp_flags*/
-    "Device object",    	   /* tp_doc */
+    "Device descritptor object",    	   /* tp_doc */
     0,                         /* tp_traverse */
     0,                         /* tp_clear */
     0,                         /* tp_richcompare */
@@ -1012,7 +1040,7 @@ PYUSB_STATIC PyMemberDef Py_usb_DeviceHandle_Members[] = {
 };
 
 /*
- * def controlMsg(requestType, request, bytes, value = 0, index = 0, timeout = 100)
+ * def controlMsg(requestType, request, buffer, value = 0, index = 0, timeout = 100)
  */
 PYUSB_STATIC PyObject *Py_usb_DeviceHandle_controlMsg(
 	PyObject *self,
@@ -1028,7 +1056,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_controlMsg(
 	char *bytes;
 	PyObject *data;
 	int size;
-	int timeout = 100;
+	int timeout = DEFAULT_TIMEOUT;
 	int ret;
 
 	static char *kwlist[] = {
@@ -1036,7 +1064,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_controlMsg(
 		"request",
 		"value",
 		"index",
-		"data",
+		"buffer",
 		"timeout",
 		NULL
 	};
@@ -1058,7 +1086,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_controlMsg(
 
 	if (!bytes) return NULL;
 
-#ifdef DUMP_PARAMS
+#if DUMP_PARAMS
 
 	fprintf(stderr, "controlMsg params:\n"
 		   "\trequestType: %d\n"
@@ -1249,7 +1277,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_bulkWrite(
 	data = getBuffer(bytes, &size);
 	if (!data) return NULL;
 
-#ifdef DUMP_PARAMS
+#if DUMP_PARAMS
 
 	fprintf(stderr,
 			"bulkWrite params:\n"
@@ -1295,7 +1323,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_bulkRead(
 		return NULL;
 	}
 
-#ifdef DUMP_PARAMS
+#if DUMP_PARAMS
 
 	fprintf(stderr,
 			"bulkRead params:\n"
@@ -1350,7 +1378,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_interruptWrite(
 	data = getBuffer(bytes, &size);
 	if (!data) return NULL;
 
-#ifdef DUMP_PARAMS
+#if DUMP_PARAMS
 
 	fprintf(stderr,
 			"interruptWrite params:\n"
@@ -1396,7 +1424,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_interruptRead(
 		return NULL;
 	}
 	
-#ifdef DUMP_PARAMS
+#if DUMP_PARAMS
 
 	fprintf(stderr,
 			"bulkRead params:\n"
@@ -1442,7 +1470,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_resetEndpoint(
 	endpoint = py_NumberAsInt(args);
 	if (PyErr_Occurred()) return NULL;
 
-#ifdef DUMP_PARAMS
+#if DUMP_PARAMS
 
 	fprintf(stderr,
 			"resetEndpoint params:\n"
@@ -1488,7 +1516,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_clearHalt(
 	endpoint = py_NumberAsInt(args);
 	if (PyErr_Occurred()) return NULL;
 
-#ifdef DUMP_PARAMS
+#if DUMP_PARAMS
 
 	fprintf(stderr,
 			"clearHalt params:\n"
@@ -1510,63 +1538,103 @@ PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	 (PyCFunction) Py_usb_DeviceHandle_controlMsg,
 	 METH_VARARGS | METH_KEYWORDS,
 	 "Performs a control request to the default control pipe on a device.\n"
+	 "Arguments:\n"
+	 "\trequestType: specifies the direction of data flow, the type\n"
+	 "\t             of request, and the recipient.\n"
+	 "\trequest: specifies the request.\n"
+	 "\tbuffer: sequence with the transfer data.\n"
+	 "\tvalue: specific information to pass to the device. (default: 0)\n"
+	 "\tindex: specific information to pass to the device. (default: 0)\n"
+	 "\ttimeout: operation timeout in miliseconds. (default: 100)\n"
 	 "Returns the number of bytes written."},
 
 	{"setConfiguration",
 	 Py_usb_DeviceHandle_setConfiguration,
  	 METH_O,
 	 "Sets the active configuration of a device.\n"
-	 "The configuration parameter is a configuration value or a Configuration object"},	 
+	 "Arguments:\n"
+	 "\tconfiguration: a configuration value or a Configuration object."},	 
 
 	{"claimInterface",
 	 Py_usb_DeviceHandle_claimInterface,
 	 METH_O,
-	 ""},
+	 "Claims the interface with the Operating System.\n"
+	 "Arguments:\n"
+	 "interface: interface number or an Interface object."},
 
 	{"releaseInterface",
 	 Py_usb_DeviceHandle_releaseInterface,
 	 METH_NOARGS,
-	 ""},
+	 "Releases an interface previously claimed with claimInterface."},
 	
 	{"setAltInterface",
 	 Py_usb_DeviceHandle_setAltInterface,
 	 METH_O,
-	 ""},
+	 "Sets the active alternate setting of the current interface.\n"
+	 "Arguments:\n"
+	 "\talternate: an alternate setting number or an Interface object."},
 
 	{"bulkWrite",
 	 Py_usb_DeviceHandle_bulkWrite,
 	 METH_VARARGS,
-	 ""},
+	 "Performs a bulk write request to the endpoint specified.\n"
+	 "Arguments:\n"
+	 "\tendpoint: endpoint number.\n"
+	 "\tdata: sequence data buffer to write.\n"
+	 "\t      This parameter can be any sequence type\n"
+	 "\ttimeout: operation timeout in miliseconds. (default: 100)\n"
+	 "Returns the number of bytes written."},
 
 	{"bulkRead",
 	 Py_usb_DeviceHandle_bulkRead,
 	 METH_VARARGS,
-	 ""},
+	 "Performs a bulk read request to the endpoint specified.\n"
+	 "Arguments:\n"
+	 "\tendpoint: endpoint number.\n"
+	 "\tsize: number of bytes to read.\n"
+	 "\ttimeout: operation timeout in miliseconds. (default: 100)\n"
+	 "Returns a tuple with the data read."},
 
 	{"interruptWrite",
 	 Py_usb_DeviceHandle_interruptWrite,
 	 METH_VARARGS,
-	 ""},
+	 "Performs a interrupt write request to the endpoint specified.\n"
+	 "Arguments:\n"
+	 "\tendpoint: endpoint number.\n"
+	 "\tdata: sequence data buffer to write.\n"
+	 "\t      This parameter can be any sequence type\n"
+	 "\ttimeout: operation timeout in miliseconds. (default: 100)\n"
+	 "Returns the number of bytes written."},
 
 	{"interruptRead",
 	 Py_usb_DeviceHandle_interruptRead,
 	 METH_VARARGS,
-	 ""},
+	 "Performs a interrupt read request to the endpoint specified.\n"
+	 "Arguments:\n"
+	 "\tendpoint: endpoint number.\n"
+	 "\tsize: number of bytes to read.\n"
+	 "\ttimeout: operation timeout in miliseconds. (default: 100)\n"
+	 "Returns a tuple with the data read."},
 
 	{"resetEndpoint",
 	 Py_usb_DeviceHandle_resetEndpoint,
 	 METH_O,
-	 ""},
+	 "Resets all state (like toggles) for the specified endpoint.\n"
+	 "Arguments:\n"
+	 "\tendpoint: endpoint number.\n"},
 
 	{"reset",
 	 Py_usb_DeviceHandle_reset,
 	 METH_NOARGS,
-	 ""},
+	 "Resets the specified device by sending a RESET\n"
+	 "down the port it is connected to.\n"},
 
 	{"clearHalt",
 	 Py_usb_DeviceHandle_clearHalt,
 	 METH_O,
-	 ""},
+	 "Clears any halt status on the specified endpoint.\n"
+	 "Arguments:\n"
+	 "\tendpoint: endpoint number.\n"},
 
 	{NULL, NULL}
 };
