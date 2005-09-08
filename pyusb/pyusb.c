@@ -21,7 +21,7 @@
 
 #define DEFAULT_TIMEOUT 100
 
-PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.7 2005/09/07 22:29:06 wander Exp $";
+PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.8 2005/09/08 17:47:36 wander Exp $";
 
 /*
  * USBError
@@ -29,6 +29,9 @@ PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.7 2005/09/07 22:29:06 wander Exp $
 PYUSB_STATIC PyObject *PyExc_USBError;
 
 #define PyUSB_Error() PyErr_SetString(PyExc_USBError, usb_strerror())
+
+#define SUPPORT_NUMBER_PROTOCOL(_Arg) \
+	(PyNumber_Check(_Arg) || PyString_Check(_Arg) || PyUnicode_Check(_Arg))
 
 #if !defined(NDEBUG)
 #define DUMP_PARAMS 1
@@ -48,10 +51,12 @@ PYUSB_STATIC void printBuffer(
 {
 	int i;
 
-   	for (i = 0; i < 0; ++i) {
+   	for (i = 0; i < size; ++i) {
 		fprintf(stderr, "%2x ", buffer[i]);
 		if (i && !(i % 20)) fputc('\n', stderr);
 	}
+
+	fputc('\n', stderr);
 }
 
 #endif /* NDEBUG */
@@ -1135,7 +1140,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_setConfiguration(
 	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
 	int configuration;
 
-	if (PyNumber_Check(args)) {
+	if (SUPPORT_NUMBER_PROTOCOL(args)) {
 		configuration = (int) PyInt_AS_LONG(args);
 	} else if (PyObject_TypeCheck(args, &Py_usb_Configuration_Type)) {
 		configuration = ((Py_usb_Configuration *) args)->value;
@@ -1168,7 +1173,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_claimInterface(
 	int interfaceNumber;
 	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
 
-	if (PyNumber_Check(args)) {
+	if (SUPPORT_NUMBER_PROTOCOL(args)) {
 		interfaceNumber = py_NumberAsInt(args);
 		if (PyErr_Occurred()) return NULL;
 	} else if (PyObject_TypeCheck(args, &Py_usb_Interface_Type)) {
@@ -1226,7 +1231,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_setAltInterface(
 	int altInterface;
 	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
 
-	if (PyNumber_Check(args)) {
+	if (SUPPORT_NUMBER_PROTOCOL(args)) {
 		altInterface = (int) py_NumberAsInt(args);
 		if (PyErr_Occurred()) return NULL;
 	} else if (PyObject_TypeCheck(args, &Py_usb_Interface_Type)) {
@@ -1315,7 +1320,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_bulkRead(
 	PyObject *ret;
 	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
 
-	if (PyArg_ParseTuple(args,
+	if (!PyArg_ParseTuple(args,
 						 "ii|i",
 						 &endpoint,
 						 &size,
@@ -1416,7 +1421,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_interruptRead(
 	PyObject *ret;
 	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
 
-	if (PyArg_ParseTuple(args,
+	if (!PyArg_ParseTuple(args,
 						 "ii|i",
 						 &endpoint,
 						 &size,
@@ -1462,11 +1467,6 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_resetEndpoint(
 	int endpoint;
 	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
 
-	if (!PyNumber_Check(args)) {
-		PyErr_SetString(PyExc_TypeError, "Invalid argument");
-		return NULL;
-	}
-
 	endpoint = py_NumberAsInt(args);
 	if (PyErr_Occurred()) return NULL;
 
@@ -1507,11 +1507,6 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_clearHalt(
 {
 	int endpoint;
 	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
-
-	if (!PyNumber_Check(args)) {
-		PyErr_SetString(PyExc_TypeError, "Invalid argument");
-		return NULL;
-	}
 
 	endpoint = py_NumberAsInt(args);
 	if (PyErr_Occurred()) return NULL;

@@ -1,15 +1,15 @@
-PyUSB-0.1
+PyUSB-0.2
 =========
 
 PyUSB is a Python module that provides easy USB access from Python language.
 
-PyUSB is a libusb wrapper, but this will could not be truth in future versions.
+PyUSB is a libusb wrapper, but it will be able get its own usb access system.
 
-I'm using the Slackware 10.1 distribution for the development and tests.
+I'm using the Slackware distribution for the development and tests.
 
-Currently, PyUSB doesn't make more nothing besides enumerating usb devices.
-
-I'm trying release a usable version quickly, be patient or help.
+This new release contains basic functions to "talk" with USB devices.
+You can get documentation using doc strings, use pydoc to generate a
+documentation.
 
 To compile PyUSB, you need the libusb, available at http://libusb.sourceforge.net
 To build PyUSB type this:
