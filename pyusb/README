@@ -11,7 +11,8 @@ This new release contains basic functions to "talk" with USB devices.
 You can get documentation using doc strings, use pydoc to generate a
 documentation.
 
-To compile PyUSB, you need the libusb, available at http://libusb.sourceforge.net
+To compile PyUSB, you need the libusb, available at 
+http://libusb.sourceforge.net
 To build PyUSB type this:
 
 python setup.py build
@@ -20,3 +21,26 @@ This command will create the usb.so library, copy it to python library path.
 
 If you have any question about PyUSB, you can contact me at
 wander.lairson@gmail.com
+
+Compiling on Windows
+====================
+
+I'm not testing PyUSB on Windows yet, but some people has reported problems
+trying compiling on it. So, here you can find some instructions to compile
+successfully on the Windows.
+
+To run PyUSB on Windows, you need get installed libusb-win32, you can find
+libusb for win32 at http://libusb-win32.sourceforge.net.
+
+To compile on cygwin, copy the libusb.a file from libusb-win32 lib directory
+to $(CYGWINDIR)/usr/lib, and copy the file usb.h from libusb-win32 include
+directory to $(CYGWINDIR)/usr/include. After this, run the command:
+
+python setup.py build
+
+To compile on Visual C++, you can use distutils (be attempt, perhaps you need
+install some tools to get build, testing on a machine in my job, the
+distutils system asked me to install .NET SDK Framework (I had compiled python
+with Visual C++ 6.0)), or you can use the Visual C++ .NET 2003 project solution
+included with the package, you need the python and libusb-win32 headers and
+libs in the Visual C++ paths (or change project settings manually).

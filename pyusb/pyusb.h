@@ -4,10 +4,36 @@
 #include <Python.h>
 #include <structmember.h>
 #include <usb.h>
+#ifdef unix
+#include <unistd.h>
+#endif /* unix */
+#ifdef _WIN32
+//#include <windows.h>
+#endif /* _WIN32 */
 
 #define STRING_ARRAY_SIZE 256
 
 #define PYUSB_STATIC static
+
+#ifdef _WIN32
+
+#ifndef u_int8_t
+typedef unsigned char u_int8_t;
+#endif /* u_int8_t */
+
+#ifndef u_int16_t
+typedef unsigned short int u_int16_t;
+#endif /* u_int16_t */
+
+#ifndef u_int32_t
+typedef unsigned long u_int32_t;
+#endif /* u_int32_t */
+
+#ifndef PATH_MAX
+#define PATH_MAX 255
+#endif /* PATH_MAX */
+
+#endif /* _WIN32 */
 
 /*
  * EndpointDescriptor object

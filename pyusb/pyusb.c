@@ -12,16 +12,9 @@
 #include "pyusb.h"
 #include <stdlib.h>
 #include <stdio.h>
-#ifdef unix
-#include <unistd.h>
-#endif /* unix */
-#ifdef _WIN32
-#include <windows.h>
-#endif /* _WIN32 */
-
 #define DEFAULT_TIMEOUT 100
 
-PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.8 2005/09/08 17:47:36 wander Exp $";
+PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.9 2005/09/18 04:57:44 wander Exp $";
 
 /*
  * USBError
@@ -124,7 +117,7 @@ PYUSB_STATIC u_int8_t *getBuffer(
 	int *size
 	)
 {
-	u_int8_t *p;
+	u_int8_t *p = NULL;
 
 	/*
 	 * When the obj is a sequence type, we take the first byte from
@@ -1780,16 +1773,10 @@ PYUSB_STATIC PyMethodDef usb_Methods[] = {
 #define PyMODINIT_FUNC void
 #endif /* PyMODINIT_FUNC */
 
-#ifdef _WIN32
-#define PyMODINIT_EXPORT __declspec(dllexport)
-#else
-#define PyMODINIT_EXPORT
-#endif /* _WIN32 */
-
 /*
  * Entry point for the module
  */
-PyMODINIT_EXPORT PyMODINIT_FUNC initusb(void)
+PyMODINIT_FUNC initusb(void)
 {
 	PyObject *module;
 
