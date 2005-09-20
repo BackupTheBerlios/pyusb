@@ -14,7 +14,7 @@
 #include <stdio.h>
 #define DEFAULT_TIMEOUT 100
 
-PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.9 2005/09/18 04:57:44 wander Exp $";
+PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.10 2005/09/20 12:27:31 wander Exp $";
 
 /*
  * USBError
@@ -101,7 +101,7 @@ PYUSB_STATIC u_int8_t getByte(
 		Py_DECREF(vals);
 	} else {
 		byte = 0;
-		PyErr_SetString(PyExc_TypeError, "Invalid argument");
+		PyErr_BadArgument();
 	}
 
 	return byte;
@@ -160,7 +160,7 @@ PYUSB_STATIC u_int8_t *getBuffer(
 		p = getBuffer(values, size);
 		Py_DECREF(values);
 	} else {
-		PyErr_SetString(PyExc_TypeError, "Invalid argument");
+		PyErr_BadArgument();
 		return NULL;
 	}
 
@@ -792,6 +792,7 @@ PYUSB_STATIC PyMethodDef Py_usb_Device_Methods[] = {
 	{"open",
 	 Py_usb_Device_open,
 	 METH_NOARGS,
+	 "open() -> DeviceHandle\n\n"
 	 "Open the device for use.\n"
 	 "Returns a DeviceHandle object."},
 
@@ -827,7 +828,7 @@ PYUSB_STATIC PyTypeObject Py_usb_Device_Type = {
     0,                         /*tp_setattro*/
     0,                         /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,        /*tp_flags*/
-    "Device descritptor object",    	   /* tp_doc */
+    "Device descriptor object",    	   /* tp_doc */
     0,                         /* tp_traverse */
     0,                         /* tp_clear */
     0,                         /* tp_richcompare */
@@ -1056,6 +1057,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_controlMsg(
 	int size;
 	int timeout = DEFAULT_TIMEOUT;
 	int ret;
+	int as_read = 0;
 
 	static char *kwlist[] = {
 		"requestType",
@@ -1080,7 +1082,17 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_controlMsg(
 		return NULL;
 	}
 
-	bytes = (char *) getBuffer(data, &size);
+	/*
+	 * If is a number, should be a read operation...
+	 */
+	if (PyNumber_Check(data)) {
+		size = py_NumberAsInt(data);
+		if (PyErr_Occurred()) return NULL;
+		bytes = (char *) PyMem_Malloc(size);
+		as_read = 1;
+	} else {
+		bytes = (char *) getBuffer(data, &size);
+	}
 
 	if (!bytes) return NULL;
 
@@ -1098,8 +1110,12 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_controlMsg(
 		   index,
 		   timeout);
 
-	fprintf(stderr, "controlMsg buffer param:\n");
-	printBuffer(bytes, size);
+	if (as_read) {
+		fprintf(stderr, "\tbuffer: %d\n", size);
+	} else {
+		fprintf(stderr, "controlMsg buffer param:\n");
+		printBuffer(bytes, size);
+	}
 
 #endif /* DUMP_PARAMS */
 
@@ -1112,11 +1128,14 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_controlMsg(
 						  size,
 						  timeout);
 
-	free(bytes);
-
 	if (ret < 0) {
+		PyMem_Free(bytes);
 		PyUSB_Error();
 		return NULL;
+	} else if (as_read) {
+		PyObject *retObj = buildTuple(bytes, ret);
+		PyMem_Free(bytes);
+		return retObj;
 	} else {
 		return PyInt_FromLong(ret);
 	}
@@ -1138,7 +1157,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_setConfiguration(
 	} else if (PyObject_TypeCheck(args, &Py_usb_Configuration_Type)) {
 		configuration = ((Py_usb_Configuration *) args)->value;
 	} else {
-		PyErr_SetString(PyExc_TypeError, "The argument is invalid to DeviceHandle.setConfiguration");
+		PyErr_BadArgument();
 		return NULL;
 	}
 
@@ -1172,7 +1191,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_claimInterface(
 	} else if (PyObject_TypeCheck(args, &Py_usb_Interface_Type)) {
 		interfaceNumber = ((Py_usb_Interface *) args)->interfaceNumber;
 	} else {
-		PyErr_SetString(PyExc_TypeError, "The argument is invalid to DeviceHandle.claimInterface");
+		PyErr_BadArgument();
 		return NULL;
 	}
 
@@ -1230,7 +1249,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_setAltInterface(
 	} else if (PyObject_TypeCheck(args, &Py_usb_Interface_Type)) {
 		altInterface = ((Py_usb_Interface *) args)->alternateSetting;
 	} else {
-		PyErr_SetString(PyExc_TypeError, "The argument is invalid to DeviceHandle.setAltSetting");
+		PyErr_BadArgument();
 		return NULL;
 	}
 
@@ -1525,12 +1544,15 @@ PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	{"controlMsg",
 	 (PyCFunction) Py_usb_DeviceHandle_controlMsg,
 	 METH_VARARGS | METH_KEYWORDS,
+	 "controlMsg(requestType, request, buffer, value=0, index=0, timeout=100) -> bytesWritten|buffer\n\n"
 	 "Performs a control request to the default control pipe on a device.\n"
 	 "Arguments:\n"
 	 "\trequestType: specifies the direction of data flow, the type\n"
 	 "\t             of request, and the recipient.\n"
 	 "\trequest: specifies the request.\n"
-	 "\tbuffer: sequence with the transfer data.\n"
+	 "\tbuffer: if the transfer is a write transfer, buffer is a sequence \n"
+	 "\t        with the transfer data, otherwise, buffer is the number of\n"
+	 "\t        bytes to read.\n"
 	 "\tvalue: specific information to pass to the device. (default: 0)\n"
 	 "\tindex: specific information to pass to the device. (default: 0)\n"
 	 "\ttimeout: operation timeout in miliseconds. (default: 100)\n"
@@ -1539,6 +1561,7 @@ PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	{"setConfiguration",
 	 Py_usb_DeviceHandle_setConfiguration,
  	 METH_O,
+	 "setConfiguration(configuration) -> None\n\n"
 	 "Sets the active configuration of a device.\n"
 	 "Arguments:\n"
 	 "\tconfiguration: a configuration value or a Configuration object."},	 
@@ -1546,6 +1569,7 @@ PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	{"claimInterface",
 	 Py_usb_DeviceHandle_claimInterface,
 	 METH_O,
+	 "claimInterface(interface) -> None\n\n"
 	 "Claims the interface with the Operating System.\n"
 	 "Arguments:\n"
 	 "interface: interface number or an Interface object."},
@@ -1553,11 +1577,13 @@ PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	{"releaseInterface",
 	 Py_usb_DeviceHandle_releaseInterface,
 	 METH_NOARGS,
+	 "releaseInterface() -> None\n\n"
 	 "Releases an interface previously claimed with claimInterface."},
 	
 	{"setAltInterface",
 	 Py_usb_DeviceHandle_setAltInterface,
 	 METH_O,
+	 "setAltInterface(alternate) -> None\n\n"
 	 "Sets the active alternate setting of the current interface.\n"
 	 "Arguments:\n"
 	 "\talternate: an alternate setting number or an Interface object."},
@@ -1565,10 +1591,11 @@ PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	{"bulkWrite",
 	 Py_usb_DeviceHandle_bulkWrite,
 	 METH_VARARGS,
+	 "bulkWrite(endpoint, buffer, timeout=100) -> bytesWritten\n\n"
 	 "Performs a bulk write request to the endpoint specified.\n"
 	 "Arguments:\n"
 	 "\tendpoint: endpoint number.\n"
-	 "\tdata: sequence data buffer to write.\n"
+	 "\tbuffer: sequence data buffer to write.\n"
 	 "\t      This parameter can be any sequence type\n"
 	 "\ttimeout: operation timeout in miliseconds. (default: 100)\n"
 	 "Returns the number of bytes written."},
@@ -1576,6 +1603,7 @@ PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	{"bulkRead",
 	 Py_usb_DeviceHandle_bulkRead,
 	 METH_VARARGS,
+	 "bulkRead(endpoint, size, timeout=100) -> buffer\n\n"
 	 "Performs a bulk read request to the endpoint specified.\n"
 	 "Arguments:\n"
 	 "\tendpoint: endpoint number.\n"
@@ -1586,10 +1614,11 @@ PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	{"interruptWrite",
 	 Py_usb_DeviceHandle_interruptWrite,
 	 METH_VARARGS,
+	 "interruptWrite(endpoint, buffer, timeout=100) -> bytesWritten\n\n"
 	 "Performs a interrupt write request to the endpoint specified.\n"
 	 "Arguments:\n"
 	 "\tendpoint: endpoint number.\n"
-	 "\tdata: sequence data buffer to write.\n"
+	 "\tbuffer: sequence data buffer to write.\n"
 	 "\t      This parameter can be any sequence type\n"
 	 "\ttimeout: operation timeout in miliseconds. (default: 100)\n"
 	 "Returns the number of bytes written."},
@@ -1597,6 +1626,7 @@ PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	{"interruptRead",
 	 Py_usb_DeviceHandle_interruptRead,
 	 METH_VARARGS,
+	 "interruptRead(endpoint, size, timeout=100) -> buffer\n\n"
 	 "Performs a interrupt read request to the endpoint specified.\n"
 	 "Arguments:\n"
 	 "\tendpoint: endpoint number.\n"
@@ -1607,6 +1637,7 @@ PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	{"resetEndpoint",
 	 Py_usb_DeviceHandle_resetEndpoint,
 	 METH_O,
+	 "resetEndpoint(endpoint) -> None\n\n"
 	 "Resets all state (like toggles) for the specified endpoint.\n"
 	 "Arguments:\n"
 	 "\tendpoint: endpoint number.\n"},
@@ -1614,12 +1645,14 @@ PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	{"reset",
 	 Py_usb_DeviceHandle_reset,
 	 METH_NOARGS,
+	 "reset() -> None\n\n"
 	 "Resets the specified device by sending a RESET\n"
 	 "down the port it is connected to.\n"},
 
 	{"clearHalt",
 	 Py_usb_DeviceHandle_clearHalt,
 	 METH_O,
+	 "clearHalt(endpoint) -> None\n\n"
 	 "Clears any halt status on the specified endpoint.\n"
 	 "Arguments:\n"
 	 "\tendpoint: endpoint number.\n"},

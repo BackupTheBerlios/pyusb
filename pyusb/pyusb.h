@@ -7,8 +7,12 @@
 #ifdef unix
 #include <unistd.h>
 #endif /* unix */
-#ifdef _WIN32
-//#include <windows.h>
+#if 0 /* defined _WIN32 */
+/*
+ * I were having many problems trying compile with windows.h
+ * because the  Visual C++ .NET language extensions
+ */
+#include <windows.h>
 #endif /* _WIN32 */
 
 #define STRING_ARRAY_SIZE 256
