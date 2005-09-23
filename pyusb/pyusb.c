@@ -14,7 +14,7 @@
 #include <stdio.h>
 #define DEFAULT_TIMEOUT 100
 
-PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.10 2005/09/20 12:27:31 wander Exp $";
+PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.11 2005/09/23 16:25:00 wander Exp $";
 
 /*
  * USBError
@@ -1062,9 +1062,9 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_controlMsg(
 	static char *kwlist[] = {
 		"requestType",
 		"request",
+		"buffer",
 		"value",
 		"index",
-		"buffer",
 		"timeout",
 		NULL
 	};
@@ -1572,7 +1572,7 @@ PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	 "claimInterface(interface) -> None\n\n"
 	 "Claims the interface with the Operating System.\n"
 	 "Arguments:\n"
-	 "interface: interface number or an Interface object."},
+	 "\tinterface: interface number or an Interface object."},
 
 	{"releaseInterface",
 	 Py_usb_DeviceHandle_releaseInterface,
