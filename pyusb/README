@@ -3,8 +3,6 @@ PyUSB-0.2
 
 PyUSB is a Python module that provides easy USB access from Python language.
 
-PyUSB is a libusb wrapper, but it will be able get its own usb access system.
-
 I'm using the Slackware distribution for the development and tests.
 
 This new release contains basic functions to "talk" with USB devices.
@@ -13,7 +11,8 @@ documentation.
 
 To compile PyUSB, you need the libusb, available at 
 http://libusb.sourceforge.net
-To build PyUSB type this:
+
+To build PyUSBi, type this:
 
 python setup.py build
 
@@ -44,3 +43,71 @@ distutils system asked me to install .NET SDK Framework (I had compiled python
 with Visual C++ 6.0)), or you can use the Visual C++ .NET 2003 project solution
 included with the package, you need the python and libusb-win32 headers and
 libs in the Visual C++ paths (or change project settings manually).
+
+USING
+=====
+
+You can get a detailed documentation if the PyUSB using pydoc,
+simply type:
+pydoc usb
+and will be generated the PyUSB module documentation...
+
+Here is a short introduction to PyUSB:
+
+import usb	# import usb module
+
+bus = usb.busses()	# get available busses
+
+for b in bus:		# list of the busses
+	pass
+
+for dev in bus[0].devices:		# list of the bus
+	pass
+
+device = bus[0].devices[0]
+
+for c in device.configurations:	# list of the device configurations
+	pass
+
+handle = device.open()	# open the device
+
+conf = device.configurations[0]
+
+for i in conf.interfaces:	# available interfaces
+	pass
+
+intf = conf.interfaces[0]
+
+for alt in intf:			# available alternate settings
+	pass
+
+altset = intf[0]
+
+handle.setConfiguration(0)
+handle.claimInterface(0)
+
+#
+# use it
+#
+
+handle.releaseInterface()	# called automatically on __del__
+del handle
+
+TODO/ROADMAP
+============
+
+- String descriptors support
+- More tests
+- More samples
+- Better documentation
+- Facility functions to find devices
+- Tests on Windows, BSD and darwin
+
+THANKS
+======
+
+- Damian Staniforth for Mac OSX patch
+- Brenno Diegoli for bug report compiling on Windows
+- Israel Florentino
+- Mario Olimpio de Menezes
+
