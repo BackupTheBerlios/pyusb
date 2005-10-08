@@ -45,7 +45,7 @@ class Printer:
 		# initialize members
 		# TODO: automatic endpoints detection
 		self.__bulkout	= 1
-		self.__bulkin	= 2
+		self.__bulkin	= 0x82
 	
 	def __del__(self):
 		try:

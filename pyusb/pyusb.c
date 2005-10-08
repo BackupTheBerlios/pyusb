@@ -14,7 +14,15 @@
 #include <stdio.h>
 #define DEFAULT_TIMEOUT 100
 
-PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.11 2005/09/23 16:25:00 wander Exp $";
+/*
+ * Necessary to compile successfully in python 2.3
+ * Thanks to Mark Rages for the patch
+ */
+#ifndef Py_RETURN_NONE
+#define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
+#endif
+
+PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.12 2005/10/08 22:39:48 wander Exp $";
 
 /*
  * USBError
@@ -277,13 +285,19 @@ PYUSB_STATIC void installModuleConstants(
 	addConstant(dict, "ERROR_BEGIN", USB_ERROR_BEGIN);
 }
 
+/*
+ * Earlier versions of the PyUSB separate direction bit and
+ * endpoint address with direction and address fields...
+ * Windows version of the libusb does need direction
+ * bit in endpoint address to works fine.
+ * Thanks to Ray Schumacher.
+ */
 PYUSB_STATIC PyMemberDef Py_usb_Endpoint_Members[] = {
 	{"address",
 	 T_UBYTE,
 	 offsetof(Py_usb_Endpoint, address),
 	 READONLY,
-	 "Contains the endpoint address. This field has the direction field clear,\n"
-	 "the direction field indicates the endpoint direction"},
+	 "Contains the endpoint address."},
 
 	{"type",
 	 T_UBYTE,
@@ -315,7 +329,7 @@ PYUSB_STATIC PyMemberDef Py_usb_Endpoint_Members[] = {
 	 T_UBYTE,
 	 offsetof(Py_usb_Endpoint, direction),
 	 READONLY,
-	 "Is either ENDPOINT_IN or ENDPOINT_OUT, indicating the endpoint direction."},
+	 "Deprecated. It is going be removed in 0.3 version."},
 
 	{NULL}
 };
@@ -379,7 +393,7 @@ PYUSB_STATIC void set_Endpoint_fields(
 	struct usb_endpoint_descriptor *ep
 	)
 {
-	endpoint->address = ep->bEndpointAddress & 0x7f;
+	endpoint->address = ep->bEndpointAddress;
 	endpoint->type = ep->bmAttributes & 3;
 	endpoint->maxPacketSize = ep->wMaxPacketSize;
 	endpoint->interval = ep->bInterval;
