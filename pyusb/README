@@ -5,18 +5,20 @@ PyUSB is a Python module that provides easy USB access from Python language.
 
 I'm using the Slackware distribution for the development and tests.
 
-This new release contains basic functions to "talk" with USB devices.
+PyUSB isn't complete yet, but just does provide core functions for
+you develop applications using it.
 You can get documentation using doc strings, use pydoc to generate a
 documentation.
 
 To compile PyUSB, you need the libusb, available at 
 http://libusb.sourceforge.net
 
-To build PyUSBi, type this:
+To install PyUSB, type this:
 
-python setup.py build
+python setup.py install
 
-This command will create the usb.so library, copy it to python library path.
+(You need root access on the system).
+This command will build and install PyUSB.
 
 If you have any question about PyUSB, you can contact me at
 wander.lairson@gmail.com
@@ -24,9 +26,8 @@ wander.lairson@gmail.com
 Compiling on Windows
 ====================
 
-I'm not testing PyUSB on Windows yet, but some people has reported problems
-trying compiling on it. So, here you can find some instructions to compile
-successfully on the Windows.
+Some people has reported problems trying compiling on it. So, here you can 
+find some instructions to compile successfully on the Windows.
 
 To run PyUSB on Windows, you need get installed libusb-win32, you can find
 libusb for win32 at http://libusb-win32.sourceforge.net.
@@ -35,7 +36,7 @@ To compile on cygwin, copy the libusb.a file from libusb-win32 lib directory
 to $(CYGWINDIR)/usr/lib, and copy the file usb.h from libusb-win32 include
 directory to $(CYGWINDIR)/usr/include. After this, run the command:
 
-python setup.py build
+python setup.py install
 
 To compile on Visual C++, you can use distutils (be attempt, perhaps you need
 install some tools to get build, testing on a machine in my job, the
@@ -106,8 +107,11 @@ TODO/ROADMAP
 THANKS
 ======
 
-- Damian Staniforth for Mac OSX patch
-- Brenno Diegoli for bug report compiling on Windows
-- Israel Florentino
-- Mario Olimpio de Menezes
+- Damian Staniforth, for the Mac OSX patch
+- Brenno Diegoli, for bug report compiling on Windows
+- Israel Florentino, for the documentation revision
+- Mario Olimpio de Menezes, for the support
+- Ray Schumacher, for the help testing on Windows
+- Mark Rages, for the patch to compile in python 2.3
 
+(If I wrote your name wrong, sorry. Please, email me)

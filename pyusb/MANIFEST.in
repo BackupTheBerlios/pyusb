@@ -1,0 +1,2 @@
+include *.py *.c *.h README pyusb.sln pyusb.vcproj
+recursive-include samples *.py
