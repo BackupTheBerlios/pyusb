@@ -22,7 +22,7 @@
 #define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
 #endif
 
-PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.12 2005/10/08 22:39:48 wander Exp $";
+PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.13 2005/10/11 23:27:29 wander Exp $";
 
 /*
  * USBError
@@ -608,6 +608,12 @@ PYUSB_STATIC PyMemberDef Py_usb_Configuration_Members[] = {
 	 "Each element represents a sequence of the\n"
 	 "alternate settings for each interface."},
 
+	{"iConfiguration",
+	 T_UBYTE,
+	 offsetof(Py_usb_Configuration, iConfiguration),
+	 RO,
+	 ""},
+
 	{NULL}
 };
 
@@ -790,6 +796,24 @@ PYUSB_STATIC PyMemberDef Py_usb_Device_Members[] = {
 	 offsetof(Py_usb_Device, configurations),
 	 READONLY,
 	 "Tuple with the device configurations."},
+
+	{"iManufacturer",
+	 T_UBYTE,
+	 offsetof(Py_usb_Device, iManufacturer),
+	 RO,
+	 ""},
+
+	{"iProduct",
+	 T_UBYTE,
+	 offsetof(Py_usb_Device, iProduct),
+	 RO,
+	 ""},
+
+	{"iSerialNumber",
+	 T_UBYTE,
+	 offsetof(Py_usb_Device, iSerialNumber),
+	 RO,
+	 ""},
 
 	{NULL}
 };
@@ -1554,6 +1578,122 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_clearHalt(
 	}
 }
 
+/*
+ * def getString(index, len, langid = -1)
+ */
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_getString(
+	PyObject *self,
+	PyObject *args
+	)
+{
+	int langid=-1, index;
+	unsigned long len;
+	PyObject *retStr;
+	char *buffer;
+	int ret;
+	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
+
+	if (!PyArg_ParseTuple(args,
+						 "ik|i",
+						 &index,
+						 &len,
+						 &langid)) {
+		return NULL;
+	}
+
+#if DUMP_PARAMS
+
+	fprintf(stderr,
+			"getString params:\n"
+			"\tindex: %d\n"
+			"\tlen: %lu\n"
+			"\tlangid: %d\n",
+			index,
+			len,
+			langid);
+
+#endif /* DUMP_PARAMS */
+
+	++len;	/* for NULL termination */
+	buffer = (char *) PyMem_Malloc(len);
+	if (!buffer) return NULL;
+
+	if (-1 == langid) {
+		ret = usb_get_string_simple(_self->deviceHandle, index, buffer, len);
+	} else {
+		ret = usb_get_string(_self->deviceHandle, index, langid, buffer, len);
+	}
+
+	if (ret < 0) {
+		PyMem_Free(buffer);
+		PyUSB_Error();
+		return NULL;
+	}
+
+	retStr = PyString_FromStringAndSize(buffer, ret);
+	PyMem_Free(buffer);
+	return retStr;
+}
+
+/*
+ * def getDescriptor(type, index, len, endpoint = -1)
+ */
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_getDescriptor(
+	PyObject *self,
+	PyObject *args
+	)
+{
+	int endpoint=-1, type, index;
+	unsigned long len;
+	PyObject *retSeq;
+	unsigned char *buffer;
+	int ret;
+	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
+
+	if (!PyArg_ParseTuple(args,
+						 "iik|i",
+						 &type,
+						 &index,
+						 &len,
+						 &endpoint)) {
+		return NULL;
+	}
+
+#if DUMP_PARAMS
+
+	fprintf(stderr,
+			"getDescriptor params:\n"
+			"ttype: %d\n"
+			"\tindex: %d\n"
+			"\tlen: %lu\n"
+			"\tendpoint: %d\n",
+			type,
+			index,
+			len,
+			endpoint);
+
+#endif /* DUMP_PARAMS */
+
+	buffer = (char *) PyMem_Malloc(len);
+	if (!buffer) return NULL;
+
+	if (-1 == endpoint) {
+		ret = usb_get_descriptor(_self->deviceHandle, type, index, buffer, len);
+	} else {
+		ret = usb_get_descriptor_by_endpoint(_self->deviceHandle, endpoint, type, index, buffer, len);
+	}
+
+	if (ret < 0) {
+		PyMem_Free(buffer);
+		PyUSB_Error();
+		return NULL;
+	}
+
+	retSeq = buildTuple(buffer, ret);
+	PyMem_Free(buffer);
+	return retSeq;
+}
+
 PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	{"controlMsg",
 	 (PyCFunction) Py_usb_DeviceHandle_controlMsg,
@@ -1670,6 +1810,16 @@ PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	 "Clears any halt status on the specified endpoint.\n"
 	 "Arguments:\n"
 	 "\tendpoint: endpoint number.\n"},
+
+	{"getString",
+	 Py_usb_DeviceHandle_getString,
+	 METH_VARARGS,
+	 ""},
+
+	{"getDescriptor",
+	 Py_usb_DeviceHandle_getDescriptor,
+	 METH_VARARGS,
+	 ""},
 
 	{NULL, NULL}
 };
