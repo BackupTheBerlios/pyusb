@@ -22,7 +22,7 @@
 #define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
 #endif
 
-PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.13 2005/10/11 23:27:29 wander Exp $";
+PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.14 2005/10/13 23:06:07 wander Exp $";
 
 /*
  * USBError
@@ -325,12 +325,6 @@ PYUSB_STATIC PyMemberDef Py_usb_Endpoint_Members[] = {
 	 "the interval for polling isochronous endpoints, or the maximum NAK\n"
 	 "rate for high-speed bulk OUT or control endpoints."},
 
-	{"direction",
-	 T_UBYTE,
-	 offsetof(Py_usb_Endpoint, direction),
-	 READONLY,
-	 "Deprecated. It is going be removed in 0.3 version."},
-
 	{NULL}
 };
 
@@ -398,7 +392,6 @@ PYUSB_STATIC void set_Endpoint_fields(
 	endpoint->maxPacketSize = ep->wMaxPacketSize;
 	endpoint->interval = ep->bInterval;
 	endpoint->refresh = ep->bRefresh;
-	endpoint->direction = ep->bEndpointAddress >> 7;
 	// endpoint->synchAddress - ep->bSynchAddress;
 }
 
@@ -612,7 +605,8 @@ PYUSB_STATIC PyMemberDef Py_usb_Configuration_Members[] = {
 	 T_UBYTE,
 	 offsetof(Py_usb_Configuration, iConfiguration),
 	 RO,
-	 ""},
+	 "Index to a string that describes the\n"
+	 "configuration."},
 
 	{NULL}
 };
@@ -801,19 +795,21 @@ PYUSB_STATIC PyMemberDef Py_usb_Device_Members[] = {
 	 T_UBYTE,
 	 offsetof(Py_usb_Device, iManufacturer),
 	 RO,
-	 ""},
+	 "An index that points to a string describing the\n"
+	 "manufacturer."},
 
 	{"iProduct",
 	 T_UBYTE,
 	 offsetof(Py_usb_Device, iProduct),
 	 RO,
-	 ""},
+	 "An index that points to a string describing the product."},
 
 	{"iSerialNumber",
 	 T_UBYTE,
 	 offsetof(Py_usb_Device, iSerialNumber),
 	 RO,
-	 ""},
+	 "An index that points to a string containing the\n"
+	 "device's serial number."},
 
 	{NULL}
 };
@@ -1482,7 +1478,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_interruptRead(
 #if DUMP_PARAMS
 
 	fprintf(stderr,
-			"bulkRead params:\n"
+			"interruptRead params:\n"
 			"\tendpoint: %d\n"
 			"\tsize: %d\n"
 			"\ttimeout: %d\n",
@@ -1495,7 +1491,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_interruptRead(
 	buffer = (char *) PyMem_Malloc(size);
 	if (!buffer) return NULL;
 
-	size = usb_bulk_read(_self->deviceHandle, endpoint, buffer, size, timeout);
+	size = usb_interrupt_read(_self->deviceHandle, endpoint, buffer, size, timeout);
 
 	if (size < 0) {
 		PyMem_Free(buffer);
@@ -1814,12 +1810,27 @@ PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	{"getString",
 	 Py_usb_DeviceHandle_getString,
 	 METH_VARARGS,
-	 ""},
+	 "getString(index, len, langid = -1) -> string\n\n"
+	 "Retrieves the string descriptor specified by index\n"
+	 "and langid from a device.\n"
+	 "Arguments:\n"
+	 "\tindex: index of descriptor in the device.\n"
+	 "\tlen: number of bytes of the string\n"
+	 "\tlangid: Language ID. If it is omittedi, will be\n"
+	 "\t        used the first language.\n"},
 
 	{"getDescriptor",
 	 Py_usb_DeviceHandle_getDescriptor,
 	 METH_VARARGS,
-	 ""},
+	 "getDescriptor(type, index, len, endpoint = -1) -> descriptor\n\n"
+	 "Retrieves a descriptor from the device identified by the type\n"
+	 "and index of the descriptor.\n"
+	 "Arguments:\n"
+	 "\ttype: descriptor type.\n"
+	 "\tindex: index of the descriptor.\n"
+	 "\tlen: descriptor length.\n"
+	 "\tendpoint: endpoint number from descriptor is read. If it is\n"
+	 "\t          omitted, the descriptor is read from default control pipe.\n"},
 
 	{NULL, NULL}
 };

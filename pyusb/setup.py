@@ -30,7 +30,14 @@ usbmodule = Extension(name = 'usb',
 					depends = ['pyusb.h'])
 
 setup(name = 'pyusb',
-	version = '0.2.1',
+	version = '0.3',
+	description = "USB access extension module",
+	long_description =
+	"""
+	PyUSB provides easy USB access to python.
+	The module contains classes and methods to
+	support the most USB operations.
+	""",
 	author = 'Wander Lairson Costa',
 	author_email = 'wander.lairson@gmail.com',
 	url = 'http://pyusb.berlios.de',

@@ -49,7 +49,6 @@ typedef struct _Py_usb_Endpoint {
 	u_int16_t maxPacketSize;
 	u_int8_t interval;
 	u_int8_t refresh;
-	u_int8_t direction;
 } Py_usb_Endpoint;
 
 

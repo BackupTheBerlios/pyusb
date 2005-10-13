@@ -1,4 +1,4 @@
-PyUSB-0.2.1
+PyUSB-0.3
 ===========
 
 PyUSB is a Python module that provides easy USB access from Python language.
@@ -94,15 +94,20 @@ handle.claimInterface(0)
 handle.releaseInterface()	# called automatically on __del__
 del handle
 
+#
+# to see pyusb docstrings...
+#
+from pydoc import help
+import usb
+help(usb)
+
 TODO/ROADMAP
 ============
 
-- String descriptors support
 - More tests
 - More samples
 - Better documentation
 - Facility functions to find devices
-- Tests on Windows, BSD and darwin
 
 THANKS
 ======
@@ -112,6 +117,7 @@ THANKS
 - Israel Florentino, for the documentation revision
 - Mario Olimpio de Menezes, for the support
 - Ray Schumacher, for the help testing on Windows
-- Mark Rages, for the patch to compile in python 2.3
+- Mark Rages, for the patch to compile in python 2.3 and
+              patch to interruptRead method
 
 (If I wrote your name wrong, sorry. Please, email me)
