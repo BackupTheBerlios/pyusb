@@ -115,6 +115,7 @@ THANKS
 - Damian Staniforth, for the Mac OSX patch
 - Brenno Diegoli, for bug report compiling on Windows
 - Israel Florentino, for the documentation revision
+- Xiaofan Chen, for Windows tests
 - Mario Olimpio de Menezes, for the support
 - Ray Schumacher, for the help testing on Windows
 - Mark Rages, for the patch to compile in python 2.3 and
