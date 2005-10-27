@@ -22,7 +22,7 @@
 #define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
 #endif
 
-PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.14 2005/10/13 23:06:07 wander Exp $";
+PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.15 2005/10/27 21:20:48 wander Exp $";
 
 /*
  * USBError
@@ -1640,14 +1640,14 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_getDescriptor(
 	)
 {
 	int endpoint=-1, type, index;
-	unsigned long len;
+	int len;
 	PyObject *retSeq;
 	unsigned char *buffer;
 	int ret;
 	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
 
 	if (!PyArg_ParseTuple(args,
-						 "iik|i",
+						 "iii|i",
 						 &type,
 						 &index,
 						 &len,
@@ -1661,7 +1661,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_getDescriptor(
 			"getDescriptor params:\n"
 			"ttype: %d\n"
 			"\tindex: %d\n"
-			"\tlen: %lu\n"
+			"\tlen: %d\n"
 			"\tendpoint: %d\n",
 			type,
 			index,
