@@ -20,7 +20,17 @@ if -1 != platform.find("mac"):
 					   '-framework',
 					   'IOKit']
 elif -1 != platform.find("win32"):
-	libraries = ["libusb"]	
+	libraries = ["libusb"]
+# necessary to work fine in darwin
+# Many thanks to James Barabas!
+elif -1 != platform.find("darwin"):
+	extra_link_args = ['-framework',
+					   'CoreFoundation',
+					   '-framework',
+					   'IOKit',
+					   '-L/sw/lib']
+																										    extra_compile_args = ['-I/sw/include']
+																											
 
 usbmodule = Extension(name = 'usb',
 					libraries = libraries,
