@@ -29,7 +29,7 @@ elif -1 != platform.find("darwin"):
 					   '-framework',
 					   'IOKit',
 					   '-L/sw/lib']
-																										    extra_compile_args = ['-I/sw/include']
+    extra_compile_args = ['-I/sw/include']
 																											
 
 usbmodule = Extension(name = 'usb',
