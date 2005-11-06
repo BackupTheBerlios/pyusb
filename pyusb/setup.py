@@ -40,7 +40,7 @@ usbmodule = Extension(name = 'usb',
 					depends = ['pyusb.h'])
 
 setup(name = 'pyusb',
-	version = '0.3',
+	version = '0.3.1',
 	description = "USB access extension module",
 	long_description =
 	"""
