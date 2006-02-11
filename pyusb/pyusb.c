@@ -22,7 +22,7 @@
 #define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
 #endif
 
-PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.15 2005/10/27 21:20:48 wander Exp $";
+PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.16 2006/02/11 13:17:49 wander Exp $";
 
 /*
  * USBError
@@ -470,7 +470,7 @@ PYUSB_STATIC PyTypeObject Py_usb_Interface_Type = {
     "usb.Interface",    	   /*tp_name*/
     sizeof(Py_usb_Interface),   /*tp_basicsize*/
     0,                         /*tp_itemsize*/
-    0,                         /*tp_dealloc*/
+    Py_usb_Interface_del,     /*tp_dealloc*/
     0,                         /*tp_print*/
     0,                         /*tp_getattr*/
     0,                         /*tp_setattr*/
@@ -511,7 +511,7 @@ PYUSB_STATIC PyTypeObject Py_usb_Interface_Type = {
 	0,
 	0,
 	0,
-	Py_usb_Interface_del		/* destructor */
+	0 							/* destructor */
 };
 
 PYUSB_STATIC void set_Interface_fields(
@@ -628,7 +628,7 @@ PYUSB_STATIC PyTypeObject Py_usb_Configuration_Type = {
     "usb.Configuration",   	   /*tp_name*/
     sizeof(Py_usb_Configuration),   /*tp_basicsize*/
     0,                         /*tp_itemsize*/
-    0,                         /*tp_dealloc*/
+    Py_usb_Configuration_del,  /*tp_dealloc*/
     0,                         /*tp_print*/
     0,                         /*tp_getattr*/
     0,                         /*tp_setattr*/
@@ -669,7 +669,7 @@ PYUSB_STATIC PyTypeObject Py_usb_Configuration_Type = {
 	0,
 	0,
 	0,
-	Py_usb_Configuration_del	/* destructor */
+	0			/* destructor */
 };
 
 PYUSB_STATIC void set_Configuration_fields(
@@ -846,7 +846,7 @@ PYUSB_STATIC PyTypeObject Py_usb_Device_Type = {
     "usb.Device",   	   	   /*tp_name*/
     sizeof(Py_usb_Device),     /*tp_basicsize*/
     0,                         /*tp_itemsize*/
-    0,                         /*tp_dealloc*/
+    Py_usb_Device_del,         /*tp_dealloc*/
     0,                         /*tp_print*/
     0,                         /*tp_getattr*/
     0,                         /*tp_setattr*/
@@ -887,7 +887,7 @@ PYUSB_STATIC PyTypeObject Py_usb_Device_Type = {
 	0,
 	0,
 	0,
-	Py_usb_Device_del			/* destructor */
+	0					/* destructor */
 };
 
 PYUSB_STATIC void set_Device_fields(
@@ -991,7 +991,7 @@ PYUSB_STATIC PyTypeObject Py_usb_Bus_Type = {
     "usb.Bus",   	   	   	   /*tp_name*/
     sizeof(Py_usb_Bus),        /*tp_basicsize*/
     0,                         /*tp_itemsize*/
-    0,                         /*tp_dealloc*/
+    Py_usb_Bus_del,            /*tp_dealloc*/
     0,                         /*tp_print*/
     0,                         /*tp_getattr*/
     0,                         /*tp_setattr*/
@@ -1032,7 +1032,7 @@ PYUSB_STATIC PyTypeObject Py_usb_Bus_Type = {
 	0,
 	0,
 	0,
-	Py_usb_Bus_del			/* destructor */
+	0							/* destructor */
 };
 
 PYUSB_STATIC Py_usb_Bus *new_Bus(
@@ -1858,7 +1858,7 @@ PYUSB_STATIC PyTypeObject Py_usb_DeviceHandle_Type = {
     "usb.DeviceHandle",   	   /*tp_name*/
     sizeof(Py_usb_DeviceHandle), /*tp_basicsize*/
     0,                         /*tp_itemsize*/
-    0,                         /*tp_dealloc*/
+    Py_usb_DeviceHandle_del,   /*tp_dealloc*/
     0,                         /*tp_print*/
     0,                         /*tp_getattr*/
     0,                         /*tp_setattr*/
@@ -1899,7 +1899,7 @@ PYUSB_STATIC PyTypeObject Py_usb_DeviceHandle_Type = {
 	0,
 	0,
 	0,
-	Py_usb_DeviceHandle_del		/* destructor */
+	0						/* destructor */
 };
 
 PYUSB_STATIC Py_usb_DeviceHandle *new_DeviceHandle(
