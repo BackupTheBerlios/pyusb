@@ -22,7 +22,7 @@
 #define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
 #endif
 
-PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.16 2006/02/11 13:17:49 wander Exp $";
+PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.17 2006/02/12 18:10:47 wander Exp $";
 
 /*
  * USBError
@@ -458,6 +458,7 @@ PYUSB_STATIC void Py_usb_Interface_del(
 	)
 {
 	Py_XDECREF((PyObject *) ((Py_usb_Interface *) self)->endpoints);
+	PyObject_Del(self);
 }
 
 PYUSB_STATIC PyMethodDef Py_usb_Interface_Methods[] = {
@@ -620,6 +621,7 @@ PYUSB_STATIC void Py_usb_Configuration_del(
 	)
 {
 	Py_XDECREF((PyObject *) ((Py_usb_Configuration *) self)->interfaces);
+	PyObject_Del(self);;
 }
 
 PYUSB_STATIC PyTypeObject Py_usb_Configuration_Type = {
@@ -838,6 +840,7 @@ PYUSB_STATIC void Py_usb_Device_del(
 	)
 {
 	Py_XDECREF(((Py_usb_Device *) self)->configurations);
+	PyObject_Del(self);;
 }
 
 PYUSB_STATIC PyTypeObject Py_usb_Device_Type = {
@@ -983,6 +986,7 @@ PYUSB_STATIC void Py_usb_Bus_del(
 	)
 {
 	Py_XDECREF(((Py_usb_Bus *) self)->devices);
+	PyObject_Del(self);
 }
 
 PYUSB_STATIC PyTypeObject Py_usb_Bus_Type = {
@@ -1850,6 +1854,8 @@ PYUSB_STATIC void Py_usb_DeviceHandle_del(
 
 		usb_close(_self->deviceHandle);
 	}
+
+	PyObject_Del(self);
 }
 
 PYUSB_STATIC PyTypeObject Py_usb_DeviceHandle_Type = {
