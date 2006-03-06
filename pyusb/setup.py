@@ -30,6 +30,13 @@ elif -1 != platform.find("darwin"):
 					   'IOKit',
 					   '-L/sw/lib']
 	extra_compile_args = ['-I/sw/include']
+# Juha Torkkel has reported problems compiling on freebsd
+# when libusb is in /usr/local tree. I don't on freebsd, but
+# on Linux the paths to usr/local are in $PATH.
+# Thanks Juha... ;)
+elif -1 != platform.find("freebsd")
+	extra_link_args = ['-L/usr/local/lib']
+	extra_compile_args = ['-I/usr/local/include']
 																											
 
 usbmodule = Extension(name = 'usb',
