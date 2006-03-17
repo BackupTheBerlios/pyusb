@@ -22,7 +22,7 @@
 #define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
 #endif
 
-PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.18 2006/03/06 00:11:32 wander Exp $";
+PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.19 2006/03/17 00:59:21 wander Exp $";
 
 /*
  * USBError
@@ -1175,6 +1175,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_controlMsg(
 		PyMem_Free(bytes);
 		return retObj;
 	} else {
+		PyMem_Free(bytes);
 		return PyInt_FromLong(ret);
 	}
 }
@@ -1348,6 +1349,8 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_bulkWrite(
 
 	ret = usb_bulk_write(_self->deviceHandle, endpoint, data, size, timeout);
 
+	PyMem_Free(data);
+
 	if (ret < 0) {
 		PyUSB_Error();
 		return NULL;
@@ -1448,6 +1451,8 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_interruptWrite(
 #endif /* DUMP_PARAMS */
 
 	ret = usb_interrupt_write(_self->deviceHandle, endpoint, data, size, timeout);
+
+	PyMem_Free(data);
 
 	if (ret < 0) {
 		PyUSB_Error();

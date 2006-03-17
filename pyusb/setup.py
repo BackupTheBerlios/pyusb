@@ -34,7 +34,7 @@ elif -1 != platform.find("darwin"):
 # when libusb is in /usr/local tree. I don't on freebsd, but
 # on Linux the paths to usr/local are in $PATH.
 # Thanks Juha... ;)
-elif -1 != platform.find("freebsd")
+elif -1 != platform.find("freebsd"):
 	extra_link_args = ['-L/usr/local/lib']
 	extra_compile_args = ['-I/usr/local/include']
 																											
@@ -47,7 +47,7 @@ usbmodule = Extension(name = 'usb',
 					depends = ['pyusb.h'])
 
 setup(name = 'pyusb',
-	version = '0.3.2',
+	version = '0.3.3',
 	description = "USB access extension module",
 	long_description =
 	"""
