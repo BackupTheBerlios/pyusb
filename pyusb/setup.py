@@ -2,7 +2,7 @@
 #
 # PyUSB setup script
 #
-# Copyright 2005 Wander Lairson Costa
+# Copyright 2005 - 2006 Wander Lairson Costa
 
 from distutils.core import setup, Extension
 import sys

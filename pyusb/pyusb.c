@@ -1,13 +1,17 @@
 /*
  * PyUSB - Python module for USB Access
  *
- * Copyright 2005 Wander Lairson Costa
+ * Copyright 2005 - 2006 Wander Lairson Costa
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
+
+#if _MSC_VER >= 1400	/* Visual C++ 8.00 */
+#define _CRT_SECURE_NO_DEPRECATE
+#endif /* _MSC_VER */
 
 #include "pyusb.h"
 #include <stdlib.h>
@@ -22,7 +26,7 @@
 #define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
 #endif
 
-PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.19 2006/03/17 00:59:21 wander Exp $";
+PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.20 2006/03/18 02:52:49 wander Exp $";
 
 /*
  * USBError
