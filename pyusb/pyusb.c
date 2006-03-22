@@ -26,7 +26,7 @@
 #define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
 #endif
 
-PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.20 2006/03/18 02:52:49 wander Exp $";
+PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.21 2006/03/22 17:00:22 wander Exp $";
 
 /*
  * USBError
@@ -574,7 +574,7 @@ PYUSB_STATIC PyMemberDef Py_usb_Configuration_Members[] = {
 	 "endpoints."},
 
 	{"value",
-	 T_USHORT,
+	 T_UBYTE,
 	 offsetof(Py_usb_Configuration, value),
 	 READONLY,
 	 "Identifies the configuration."},

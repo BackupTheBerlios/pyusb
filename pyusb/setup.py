@@ -31,7 +31,7 @@ elif -1 != platform.find("darwin"):
 					   '-L/sw/lib']
 	extra_compile_args = ['-I/sw/include']
 # Juha Torkkel has reported problems compiling on freebsd
-# when libusb is in /usr/local tree. I don't on freebsd, but
+# when libusb is in /usr/local tree. I don't know on freebsd, but
 # on Linux the paths to usr/local are in $PATH.
 # Thanks Juha... ;)
 elif -1 != platform.find("freebsd"):
