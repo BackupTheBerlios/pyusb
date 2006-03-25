@@ -41,7 +41,7 @@ python setup.py install
 To compile on Visual C++, you can use distutils (be attempt, perhaps you need
 install some tools to get build, testing on a machine in my job, the
 distutils system asked me to install .NET SDK Framework (I had compiled python
-with Visual C++ 6.0)), or you can use the Visual C++ .NET 2003 project solution
+with Visual C++ 6.0)), or you can use the Visual C++ .NET 2005 project solution
 included with the package, you need the python and libusb-win32 headers and
 libs in the Visual C++ paths (or change project settings manually).
 
