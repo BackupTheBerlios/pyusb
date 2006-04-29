@@ -26,7 +26,7 @@
 #define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
 #endif
 
-PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.21 2006/03/22 17:00:22 wander Exp $";
+PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.22 2006/04/29 23:50:32 wander Exp $";
 
 /*
  * USBError
@@ -55,6 +55,11 @@ PYUSB_STATIC void printBuffer(
 	)
 {
 	int i;
+
+	if (!buffer) {
+		fputs("NULL\n", stderr);
+		return;
+	}
 
    	for (i = 0; i < size; ++i) {
 		fprintf(stderr, "%2x ", buffer[i]);
@@ -171,6 +176,9 @@ PYUSB_STATIC u_int8_t *getBuffer(
 
 		p = getBuffer(values, size);
 		Py_DECREF(values);
+	} else if (obj == Py_None) {
+		*size = 0;
+		return NULL;
 	} else {
 		PyErr_BadArgument();
 		return NULL;
@@ -1131,12 +1139,13 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_controlMsg(
 		size = py_NumberAsInt(data);
 		if (PyErr_Occurred()) return NULL;
 		bytes = (char *) PyMem_Malloc(size);
+		if (!bytes) return NULL;
 		as_read = 1;
 	} else {
 		bytes = (char *) getBuffer(data, &size);
+		if (PyErr_Occurred()) return NULL;
 	}
 
-	if (!bytes) return NULL;
 
 #if DUMP_PARAMS
 
@@ -1335,7 +1344,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_bulkWrite(
 	}
 
 	data = getBuffer(bytes, &size);
-	if (!data) return NULL;
+	if (PyErr_Occurred()) return NULL;
 
 #if DUMP_PARAMS
 
@@ -1438,7 +1447,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_interruptWrite(
 	}
 
 	data = getBuffer(bytes, &size);
-	if (!data) return NULL;
+	if (PyErr_Occurred()) return NULL;
 
 #if DUMP_PARAMS
 
@@ -2003,11 +2012,13 @@ PyMODINIT_FUNC initusb(void)
 {
 	PyObject *module;
 
-	PyExc_USBError = PyErr_NewException("usb.USBError", PyExc_IOError, NULL);
-	if (!PyExc_USBError) return;
-
 	module = Py_InitModule3("usb", usb_Methods,"USB access module");
 	if (!module) return;
+
+	PyExc_USBError = PyErr_NewException("usb.USBError", PyExc_IOError, NULL);
+	if (!PyExc_USBError) return;
+	PyModule_AddObject(module, "USBError", PyExc_USBError);
+	Py_INCREF(PyExc_USBError);
 
 	if (PyType_Ready(&Py_usb_Endpoint_Type) < 0) return;
 	Py_INCREF(&Py_usb_Endpoint_Type);
