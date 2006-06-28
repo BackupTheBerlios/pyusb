@@ -26,7 +26,7 @@
 #define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
 #endif
 
-PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.22 2006/04/29 23:50:32 wander Exp $";
+// PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.23 2006/06/28 22:40:20 wander Exp $";
 
 /*
  * USBError
@@ -129,12 +129,12 @@ PYUSB_STATIC u_int8_t getByte(
  * If the obj is a sequence, returns the elements as a c byte array representation
  * If it is a mapping, returns the c byte array representations of the obj.values()
  */
-PYUSB_STATIC u_int8_t *getBuffer(
+PYUSB_STATIC char *getBuffer(
 	PyObject *obj,
 	int *size
 	)
 {
-	u_int8_t *p = NULL;
+	char *p = NULL;
 
 	/*
 	 * When the obj is a sequence type, we take the first byte from
@@ -146,7 +146,7 @@ PYUSB_STATIC u_int8_t *getBuffer(
 		char *tmp;
 
 		if (-1 != PyString_AsStringAndSize(obj, &tmp, size)) {
-			p = PyMem_Malloc(*size);
+			p = (char *) PyMem_Malloc(*size);
 			if (p) memcpy(p, tmp, *size);
 		}
 	} else if (PySequence_Check(obj)) {
@@ -154,7 +154,7 @@ PYUSB_STATIC u_int8_t *getBuffer(
 		PyObject *el;
 
 		sz = PySequence_Size(obj);
-		p = (u_int8_t *) PyMem_Malloc(sz);
+		p = (char *) PyMem_Malloc(sz);
 
 		for (i = 0; i < sz; ++i) {
 			el = PySequence_GetItem(obj, i);
@@ -939,6 +939,11 @@ PYUSB_STATIC void set_Device_fields(
 	strcpy(device->filename, dev->filename);
 	device->dev = dev;
 
+	if (!dev->config) {
+		device->configurations = PyTuple_New(0);
+		return;
+	}
+
 	device->configurations = PyTuple_New(desc->bNumConfigurations);
 
 	if (!device->configurations) return;
@@ -1664,7 +1669,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_getDescriptor(
 	int endpoint=-1, type, index;
 	int len;
 	PyObject *retSeq;
-	unsigned char *buffer;
+	char *buffer;
 	int ret;
 	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
 

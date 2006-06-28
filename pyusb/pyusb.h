@@ -5,6 +5,7 @@
 #include <structmember.h>
 #include <usb.h>
 #ifdef unix
+#include <sys/types.h>
 #include <unistd.h>
 #endif /* unix */
 #if 0 /* defined _WIN32 */
