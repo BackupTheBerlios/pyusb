@@ -20,7 +20,7 @@
 
 #define PYUSB_STATIC static
 
-#ifdef _WIN32
+#if defined _WIN32 && !defined unix
 
 #ifndef u_int8_t
 typedef unsigned char u_int8_t;
