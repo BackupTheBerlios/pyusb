@@ -1,2 +1,2 @@
-include *.py *.c *.h README pyusb.sln pyusb.vcproj
+include *.py *.c *.h README pyusb.sln pyusb.vcproj gpl.txt
 recursive-include samples *.py
