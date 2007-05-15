@@ -186,6 +186,11 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_claimInterface(
 	PyObject *args
 	);
 
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_detachKernelDriver(
+	PyObject *self,
+	PyObject *args
+	);
+
 PYUSB_STATIC PyObject *Py_usb_DeviceHandle_releaseInterface(
 	PyObject *self,
 	PyObject *args

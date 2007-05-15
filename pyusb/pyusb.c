@@ -26,7 +26,7 @@
 #define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
 #endif
 
-// PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.23 2006/06/28 22:40:20 wander Exp $";
+// PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.24 2007/05/15 21:20:55 wander Exp $";
 
 /*
  * USBError
@@ -202,7 +202,7 @@ PYUSB_STATIC PyObject *buildTuple(
 
 	if (ret) {
 		for (i = 0; i < size; ++i) {
-			PyTuple_SET_ITEM(ret, i, PyInt_FromLong(buffer[i]));
+			PyTuple_SET_ITEM(ret, i, PyInt_FromLong((u_int8_t) buffer[i]));
 		}
 	}
 
@@ -1175,6 +1175,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_controlMsg(
 
 #endif /* DUMP_PARAMS */
 
+	Py_BEGIN_ALLOW_THREADS
 	ret = usb_control_msg(_self->deviceHandle,
 						  requestType,
 						  request,
@@ -1183,6 +1184,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_controlMsg(
 						  bytes,
 						  size,
 						  timeout);
+	Py_END_ALLOW_THREADS
 
 	if (ret < 0) {
 		PyMem_Free(bytes);
@@ -1208,6 +1210,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_setConfiguration(
 {
 	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
 	int configuration;
+	int ret;
 
 	if (SUPPORT_NUMBER_PROTOCOL(args)) {
 		configuration = (int) PyInt_AS_LONG(args);
@@ -1226,7 +1229,11 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_setConfiguration(
 
 #endif /* DUMP_PARAMS */
 
-	if (usb_set_configuration(_self->deviceHandle, configuration) < 0) {
+	Py_BEGIN_ALLOW_THREADS
+	ret = usb_set_configuration(_self->deviceHandle, configuration);
+	Py_END_ALLOW_THREADS
+
+	if (ret < 0) {
 		PyUSB_Error();
 		return NULL;
 	} else {
@@ -1270,6 +1277,47 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_claimInterface(
 	Py_RETURN_NONE;
 }
 
+PYUSB_STATIC PyObject *Py_usb_DeviceHandle_detachKernelDriver(
+	PyObject *self,
+	PyObject *args
+	)
+{
+	int interfaceNumber;
+	int ret;
+	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
+
+	if (SUPPORT_NUMBER_PROTOCOL(args)) {
+		interfaceNumber = py_NumberAsInt(args);
+		if (PyErr_Occurred()) return NULL;
+	} else if (PyObject_TypeCheck(args, &Py_usb_Interface_Type)) {
+		interfaceNumber = ((Py_usb_Interface *) args)->interfaceNumber;
+	} else {
+		PyErr_BadArgument();
+		return NULL;
+	}
+
+#if DUMP_PARAMS
+
+	fprintf(stderr,
+			"detachKernelDriver params:\n\tinterfaceNumber: %d\n",
+			interfaceNumber);
+
+#endif /* DUMP_PARAMS */
+	
+#ifdef LIBUSB_HAS_DETACH_KERNEL_DRIVER_NP
+	Py_BEGIN_ALLOW_THREADS
+	ret = usb_detach_kernel_driver_np(_self->deviceHandle, interfaceNumber);
+	Py_END_ALLOW_THREADS
+
+	if (ret) {
+		PyUSB_Error();
+		return NULL;
+	} 
+#endif
+
+	Py_RETURN_NONE;
+}
+
 PYUSB_STATIC PyObject *Py_usb_DeviceHandle_releaseInterface(
 	PyObject *self,
 	PyObject *args
@@ -1278,7 +1326,12 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_releaseInterface(
 	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
 
 	if (-1 != _self->interfaceClaimed) {
-		if (usb_release_interface(_self->deviceHandle, _self->interfaceClaimed)) {
+		int ret;
+		Py_BEGIN_ALLOW_THREADS
+		ret = usb_release_interface(_self->deviceHandle, _self->interfaceClaimed);
+		Py_END_ALLOW_THREADS
+
+		if (ret) {
 			PyUSB_Error();
 			return NULL;
 		} else {
@@ -1297,7 +1350,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_setAltInterface(
 	PyObject *args
 	)
 {
-	int altInterface;
+	int altInterface, ret;
 	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
 
 	if (SUPPORT_NUMBER_PROTOCOL(args)) {
@@ -1318,7 +1371,11 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_setAltInterface(
 
 #endif /* DUMP_PARAMS */
 
-	if (usb_set_altinterface(_self->deviceHandle, altInterface) < 0) {
+	Py_BEGIN_ALLOW_THREADS
+	ret = usb_set_altinterface(_self->deviceHandle, altInterface);
+	Py_END_ALLOW_THREADS
+
+	if (ret < 0) {
 		PyUSB_Error();
 		return NULL;
 	} else {
@@ -1365,7 +1422,9 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_bulkWrite(
 
 #endif /* DUMP_PARAMS */
 
+	Py_BEGIN_ALLOW_THREADS
 	ret = usb_bulk_write(_self->deviceHandle, endpoint, data, size, timeout);
+	Py_END_ALLOW_THREADS
 
 	PyMem_Free(data);
 
@@ -1415,7 +1474,9 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_bulkRead(
 	buffer = (char *) PyMem_Malloc(size);
 	if (!buffer) return NULL;
 
+	Py_BEGIN_ALLOW_THREADS
 	size = usb_bulk_read(_self->deviceHandle, endpoint, buffer, size, timeout);
+	Py_END_ALLOW_THREADS
 
 	if (size < 0) {
 		PyMem_Free(buffer);
@@ -1468,7 +1529,9 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_interruptWrite(
 
 #endif /* DUMP_PARAMS */
 
+	Py_BEGIN_ALLOW_THREADS
 	ret = usb_interrupt_write(_self->deviceHandle, endpoint, data, size, timeout);
+	Py_END_ALLOW_THREADS
 
 	PyMem_Free(data);
 
@@ -1518,7 +1581,9 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_interruptRead(
 	buffer = (char *) PyMem_Malloc(size);
 	if (!buffer) return NULL;
 
+	Py_BEGIN_ALLOW_THREADS
 	size = usb_interrupt_read(_self->deviceHandle, endpoint, buffer, size, timeout);
+	Py_END_ALLOW_THREADS
 
 	if (size < 0) {
 		PyMem_Free(buffer);
@@ -1537,7 +1602,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_resetEndpoint(
 	PyObject *args
 	)
 {
-	int endpoint;
+	int endpoint, ret;
 	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
 
 	endpoint = py_NumberAsInt(args);
@@ -1551,8 +1616,11 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_resetEndpoint(
 			endpoint);
 
 #endif /* DUMP_PARAMS */
+	Py_BEGIN_ALLOW_THREADS
+	ret = usb_resetep(_self->deviceHandle, endpoint);
+	Py_END_ALLOW_THREADS
 
-	if (usb_resetep(_self->deviceHandle, endpoint)) {
+	if (ret) {
 		PyUSB_Error();
 		return NULL;
 	} else {
@@ -1565,7 +1633,13 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_reset(
 	PyObject *args
 	)
 {
-	if (usb_reset(((Py_usb_DeviceHandle *) self)->deviceHandle)) {
+	int ret;
+
+	Py_BEGIN_ALLOW_THREADS
+	ret = usb_reset(((Py_usb_DeviceHandle *) self)->deviceHandle);
+	Py_END_ALLOW_THREADS
+
+	if (ret) {
 		PyUSB_Error();
 		return NULL;
 	} else {
@@ -1578,7 +1652,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_clearHalt(
 	PyObject *args
 	)
 {
-	int endpoint;
+	int endpoint, ret;
 	Py_usb_DeviceHandle *_self = (Py_usb_DeviceHandle *) self;
 
 	endpoint = py_NumberAsInt(args);
@@ -1593,7 +1667,11 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_clearHalt(
 
 #endif /* DUMP_PARAMS */
 
-	if (usb_clear_halt(_self->deviceHandle, endpoint)) {
+	Py_BEGIN_ALLOW_THREADS
+	ret = usb_clear_halt(_self->deviceHandle, endpoint);
+	Py_END_ALLOW_THREADS
+
+	if (ret) {
 		PyUSB_Error();
 		return NULL;
 	} else {
@@ -1641,11 +1719,15 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_getString(
 	buffer = (char *) PyMem_Malloc(len);
 	if (!buffer) return NULL;
 
+	Py_BEGIN_ALLOW_THREADS
+
 	if (-1 == langid) {
 		ret = usb_get_string_simple(_self->deviceHandle, index, buffer, len);
 	} else {
 		ret = usb_get_string(_self->deviceHandle, index, langid, buffer, len);
 	}
+
+	Py_END_ALLOW_THREADS
 
 	if (ret < 0) {
 		PyMem_Free(buffer);
@@ -1700,11 +1782,15 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_getDescriptor(
 	buffer = (char *) PyMem_Malloc(len);
 	if (!buffer) return NULL;
 
+	Py_BEGIN_ALLOW_THREADS
+
 	if (-1 == endpoint) {
 		ret = usb_get_descriptor(_self->deviceHandle, type, index, buffer, len);
 	} else {
 		ret = usb_get_descriptor_by_endpoint(_self->deviceHandle, endpoint, type, index, buffer, len);
 	}
+
+	Py_END_ALLOW_THREADS
 
 	if (ret < 0) {
 		PyMem_Free(buffer);
@@ -1748,6 +1834,15 @@ PYUSB_STATIC PyMethodDef Py_usb_DeviceHandle_Methods[] = {
 	 METH_O,
 	 "claimInterface(interface) -> None\n\n"
 	 "Claims the interface with the Operating System.\n"
+	 "Arguments:\n"
+	 "\tinterface: interface number or an Interface object."},
+	
+	{"detachKernelDriver",
+	 Py_usb_DeviceHandle_detachKernelDriver,
+	 METH_O,
+	 "detachKernelDriver(interface) -> None\n\n"
+	 "Detaches a kernel driver from the interface (if one is attached,\n"
+	 "we have permission and the operation is supported by the OS)\n"
 	 "Arguments:\n"
 	 "\tinterface: interface number or an Interface object."},
 
@@ -2053,3 +2148,7 @@ PyMODINIT_FUNC initusb(void)
 
 	usb_init();
 }
+
+/*
+ * vim:ts=4
+ */
