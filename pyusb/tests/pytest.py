@@ -5,7 +5,7 @@ import sys
 from time import sleep
 
 # Acha um dispositivo no sistema.
-# Se não for encontrado, retorna None
+# Se nao for encontrado, retorna None
 def find_device(busses, idProduct, idVendor):
 	for bus in busses:
 		for dev in bus.devices:
@@ -14,7 +14,7 @@ def find_device(busses, idProduct, idVendor):
 
 # Escreve msg no endpoint bulk e depois
 # le, se o que foi lido for igual a msg,
-# teste ok, senão, imprime mensagem de
+# teste ok, senao, imprime mensagem de
 # erro e encerra script
 def test_bulk(handle, msg):
 	handle.bulkWrite(0x2, msg, 1000)
