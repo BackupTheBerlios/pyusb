@@ -47,7 +47,7 @@ usbmodule = Extension(name = 'usb',
 					depends = ['pyusb.h'])
 
 setup(name = 'pyusb',
-	version = '0.3.5',
+	version = '0.4.0',
 	description = "USB access extension module",
 	long_description =
 	"""
@@ -60,3 +60,5 @@ setup(name = 'pyusb',
 	url = 'http://pyusb.berlios.de',
 	license = 'GPL',
 	ext_modules = [usbmodule])
+
+# vim:ts=4
