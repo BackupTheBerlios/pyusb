@@ -1,0 +1,65 @@
+PyUSB
+
+
+%! Target : html
+
+== About ==
+
+PyUSB is a native [Python http://www.python.org] module written in C
+which provides USB access for it.
+
+PyUSB uses the [libusb http://libusb.sf.net] to do its work, so, any system
+which has Python and  libusb should work for PyUSB.
+
+== Status ==
+
+PyUSB is stable for the libusb 0.1 branch. Major changes are comming when
+libusb 1.0 be ready.
+
+I was considering to use
+[ctypes http://python.net/crew/theller/ctypes/], but because you have to
+pay attention to the internal data structures of the libusb, I'm affraid that
+use it can cause portability issues, then I'm not sure about use ctypes.
+
+== Download ==
+
+You can download PyUSB on the
+[SourceForge http://sourceforge.net/projects/pyusb] or on the
+[Berlios http://developer.berlios.de/projects/pyusb] host.
+
+Mac OS users can download the fink package on
+http://pdb.finkproject.org/pdb/search.php?summary=pyusb.
+
+== Resources ==
+
+PyUSB comes with two samples: usbenum, which shows how to enumerate
+devices and usbprint, which wraps printer usb class.
+
+[PlugUSB http://www.media.mit.edu/resenv/classes/MAS961/plug/PlugUSB.py]
+is a very good example of PyUSB usage too.
+[David Merril http://web.media.mit.edu/~dmerrill/] has written a very good
+[tutorial http://web.media.mit.edu/~dmerrill/sensor_network_applications/plug_howto.html] about installing PyUSB on Windows.
+(Thanks to [Josh Lifton http://web.media.mit.edu/~lifton/] and
+[David Merril http://web.media.mit.edu/~dmerrill/] to permit link
+their project).
+
+[Pymissile  http://scott.weston.id.au/software/pymissile-20060126/] 
+is another project that you can use as a good start point to use PyUSB.
+It uses a modified version of PyUSB, but since the version 0.4, the patch
+provided on the website shouldn't be needed. Thanks to
+[Scott Weston http://scott.weston.id.au/] to allow me link his project.
+
+Alexander Krause has a
+[wiki http://wiki.erazor-zone.de/wiki:projects:python:pyusb] with some examples
+and projects using PyUSB. It is a very good material for reference.
+Thanks to Alexander. 
+
+== Support ==
+
+Now, PyUSB users have a
+[mailing list http://sourceforge.net/mailarchive/forum.php?forum_name=pyusb-users]. Please, before send me an email, try to send your question to the mailing
+list. I still will be pleasured to answer your question if you send me an email
+directly, but the mailing list is prefered.
+
+My email is: [wander(dot)lairson(at)gmail(dot)com]
+(sorry, but spam is a problem).
