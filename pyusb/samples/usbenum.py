@@ -2,7 +2,7 @@
 #
 # Enumerate usb devices
 #
-#Copyright 2005 Wander Lairson Costa
+#Copyright 2005 - 2007 Wander Lairson Costa
 
 import usb
 

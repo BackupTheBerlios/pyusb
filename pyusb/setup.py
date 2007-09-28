@@ -2,7 +2,7 @@
 #
 # PyUSB setup script
 #
-# Copyright 2005 - 2006 Wander Lairson Costa
+# Copyright 2005 - 2007 Wander Lairson Costa
 
 from distutils.core import setup, Extension
 import sys
@@ -47,7 +47,7 @@ usbmodule = Extension(name = 'usb',
 					depends = ['pyusb.h'])
 
 setup(name = 'pyusb',
-	version = '0.4.0',
+	version = '0.4.1',
 	description = "USB access extension module",
 	long_description =
 	"""
@@ -58,7 +58,7 @@ setup(name = 'pyusb',
 	author = 'Wander Lairson Costa',
 	author_email = 'wander.lairson@gmail.com',
 	url = 'http://pyusb.berlios.de',
-	license = 'GPL',
+	license = 'BSD',
 	ext_modules = [usbmodule])
 
 # vim:ts=4
