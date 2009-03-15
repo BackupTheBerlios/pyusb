@@ -118,27 +118,11 @@ TODO/ROADMAP
 ACKNOWLEDGEMENTS
 ================
 
-Thanks to the following people for their help and contributions to the
-PyUSB project.  Where possible, there contributions are noted in the
-source code. 
+I used to put here the name of all people who have contributed to PyUSB.
+(Un)fortunately, the list is getting too long to list here, and I am
+affraied of forgetting the name of someone, so I decided to not list
+them individually here, but say Thanks to all of you in a bunch, so..
 
-- Damian Staniforth
-- Brenno Diegoli
-- Israel Florentino
-- Xiaofan Chen
-- Mario Olimpio de Menezes
-- Renato Manzan
-- Ray Schumacher
-- Mark Rages
-- James Barabas
-- Andrew Rogers
-- Juha Torkkel
-- Josh Lifton
-- David Merrill
-- Srikanth Jandhyala
-- Alexander Krause
-- Yael Maguire
-- Lucio Torre
-- Simeon Miteff
+THANK YOU VERY MUCH!
 
 PS: this great README file was written by Josh Lifton... :-)
