@@ -6,6 +6,10 @@
 
 from distutils.core import setup, Extension
 import sys
+import os
+from os.path import join
+
+program_files = os.getenv('PROGRAMFILES')
 
 extra_link_args = []
 extra_compile_args = []
@@ -21,6 +25,8 @@ if -1 != platform.find("mac"):
 					   'IOKit']
 elif -1 != platform.find("win32"):
 	libraries = ["libusb"]
+	extra_link_args = ['/LIBPATH:' + join(program_files, 'Libusb-win32', 'lib', 'msvc')]
+	extra_compile_args = ['/I' + join(program_files, 'Libusb-win32', 'include')]
 # necessary to work fine in darwin
 # Many thanks to James Barabas!
 elif -1 != platform.find("darwin"):
@@ -28,8 +34,9 @@ elif -1 != platform.find("darwin"):
 					   'CoreFoundation',
 					   '-framework',
 					   'IOKit',
-					   '-L/sw/lib']
-	extra_compile_args = ['-I/sw/include']
+					   '-L/sw/lib',
+					   '-L/usr/local/lib']
+	extra_compile_args = ['-I/sw/include','-I/usr/local/lib']
 # Juha Torkkel has reported problems compiling on freebsd
 # when libusb is in /usr/local tree. I don't know on freebsd, but
 # on Linux the paths to usr/local are in $PATH.
@@ -37,7 +44,11 @@ elif -1 != platform.find("darwin"):
 elif -1 != platform.find("freebsd"):
 	extra_link_args = ['-L/usr/local/lib']
 	extra_compile_args = ['-I/usr/local/include']
-																											
+# Added by Xiaofan Chen for NetBSD
+# Tested under NetBSD 4.0 and Python 2.4
+elif -1 != platform.find("netbsd"):
+	extra_link_args = ['-L/usr/pkg/lib']
+	extra_compile_args = ['-I/usr/pkg/include']																											
 
 usbmodule = Extension(name = 'usb',
 					libraries = libraries,
