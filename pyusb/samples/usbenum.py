@@ -16,8 +16,8 @@ for bus in busses:
 		print "  Device sub class:",dev.deviceSubClass
 		print "  Device protocol:",dev.deviceProtocol
 		print "  Max packet size:",dev.maxPacketSize
-		print "  idVendor:",dev.idVendor
-		print "  idProduct:",dev.idProduct
+		print "  idVendor: %d (0x%04x)" % (dev.idVendor, dev.idVendor)
+		print "  idProduct: %d (0x%04x)" % (dev.idProduct, dev.idProduct)
 		print "  Device Version:",dev.deviceVersion
 		for config in dev.configurations:
 			print "  Configuration:", config.value
