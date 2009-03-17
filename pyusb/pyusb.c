@@ -21,7 +21,13 @@
 #define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
 #endif
 
-// PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.26 2009/03/15 21:37:49 wander Exp $";
+#if PYTHON_MAJOR_VERSION >= 2 && PYTHON_MINOR_VERSION >= 5
+typedef Py_sszite_t Pyusb_ssize_t;
+#else
+typedef int Pyusb_ssize_t;
+#endif
+
+// PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.27 2009/03/17 12:27:23 wander Exp $";
 
 /*
  * USBError
@@ -134,7 +140,7 @@ PYUSB_STATIC u_int8_t getByte(
  */
 PYUSB_STATIC char *getBuffer(
 	PyObject *obj,
-	Py_ssize_t *size
+	Pyusb_ssize_t *size
 	)
 {
 	char *p = NULL;
@@ -1112,7 +1118,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_controlMsg(
 	int index = 0;
 	char *bytes;
 	PyObject *data;
-	Py_ssize_t size;
+	Pyusb_ssize_t size;
 	int timeout = DEFAULT_TIMEOUT;
 	int ret;
 	int as_read = 0;
@@ -1396,7 +1402,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_bulkWrite(
 	int endpoint;
 	int timeout = DEFAULT_TIMEOUT;
 	char *data;
-	Py_ssize_t size;
+	Pyusb_ssize_t size;
 	PyObject *bytes;
 	int ret;
 	PyObject *retObj;
@@ -1503,7 +1509,7 @@ PYUSB_STATIC PyObject *Py_usb_DeviceHandle_interruptWrite(
 	int endpoint;
 	int timeout = DEFAULT_TIMEOUT;
 	char *data;
-	Py_ssize_t size;
+	Pyusb_ssize_t size;
 	PyObject *bytes;
 	int ret;
 	PyObject *retObj;
