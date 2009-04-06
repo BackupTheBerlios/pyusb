@@ -97,7 +97,7 @@ handle = dev.open()        # open the device
 for alt in dev.configurations[0].interfaces[0]:
     print alt              # look at the alternate settings.
 
-handle.setConfiguration(0) # choose the first configuration
+handle.setConfiguration(1) # choose the first configuration
 
 handle.claimInterface(0)   # choose the first interface
 
