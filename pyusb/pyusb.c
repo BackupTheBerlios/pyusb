@@ -25,7 +25,7 @@
 typedef int Py_ssize_t;
 #endif
 
-// PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.28 2009/03/17 13:31:19 wander Exp $";
+// PYUSB_STATIC char cvsid[] = "$Id: pyusb.c,v 1.29 2009/04/06 18:03:10 wander Exp $";
 
 /*
  * USBError
@@ -463,6 +463,13 @@ PYUSB_STATIC PyMemberDef Py_usb_Interface_Members[] = {
 	 "Similar to bDeviceProtocol in the device\n"
 	 "descriptor, but for devices whose class is defined by the interface."},
 
+ 	{"iInterface",
+ 	 T_UBYTE,
+ 	 offsetof(Py_usb_Interface, iInterface),
+ 	 READONLY,
+ 	 "Similar to iInterface in the device\n"
+ 	 "descriptor, but for devices whose class is defined by the interface."},
+
 	{"endpoints",
 	 T_OBJECT,
 	 offsetof(Py_usb_Interface, endpoints),
@@ -832,6 +839,12 @@ PYUSB_STATIC PyMemberDef Py_usb_Device_Members[] = {
 	 "An index that points to a string containing the\n"
 	 "device's serial number."},
 
+ 	{"devnum",
+ 	 T_UBYTE,
+ 	 offsetof(Py_usb_Device, devnum),
+ 	 RO,
+ 	 "devnum of the device.\n"},
+
 	{NULL}
 };
 
@@ -945,6 +958,7 @@ PYUSB_STATIC void set_Device_fields(
 	device->iSerialNumber = desc->iSerialNumber;
 	strcpy(device->filename, dev->filename);
 	device->dev = dev;
+ 	device->devnum = dev->devnum;
 
 	if (!dev->config) {
 		device->configurations = PyTuple_New(0);

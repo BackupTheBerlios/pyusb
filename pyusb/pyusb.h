@@ -97,6 +97,7 @@ typedef struct _Py_usb_Device {
 	u_int8_t iManufacturer;
 	u_int8_t iProduct;
 	u_int8_t iSerialNumber;
+    u_int8_t devnum;
 	char filename[PATH_MAX + 1];
 	PyObject *configurations;
 	struct usb_device *dev; // necessary for usb_open
